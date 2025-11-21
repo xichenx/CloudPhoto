@@ -1,0 +1,197 @@
+---
+globs: shared/**/auth/**/*.kt,shared/**/service/AuthService.kt
+description: 认证和 Token 管理规范
+---
+
+# 认证和 Token 管理规范
+
+## TokenManager
+
+### 使用 TokenManager
+
+[TokenManager](mdc:shared/src/commonMain/kotlin/com/xichen/cloudphoto/core/auth/TokenManager.kt) 是 `expect class`，平台特定实现：
+
+```kotlin
+// Android 实现
+val tokenManager = TokenManager(context)
+
+// 保存 Token
+tokenManager.saveAccessToken(accessToken)
+tokenManager.saveRefreshToken(refreshToken)
+
+// 获取 Token
+val accessToken = tokenManager.getAccessToken()
+val refreshToken = tokenManager.getRefreshToken()
+
+// 检查登录状态
+val isLoggedIn = tokenManager.isLoggedIn()
+
+// 清除 Token
+tokenManager.clearTokens()
+```
+
+## AuthService
+
+### 登录流程
+
+使用 [AuthService](mdc:shared/src/commonMain/kotlin/com/xichen/cloudphoto/service/AuthService.kt)：
+
+```kotlin
+val authService = AuthService(baseUrl = "http://api.example.com")
+
+// 发送邮箱验证码
+val codeResult = authService.sendEmailCode(email, "register")
+
+// 用户注册
+val registerResult = authService.register(
+    RegisterRequest(
+        username = username,
+        email = email,
+        password = password,
+        emailCode = emailCode
+    )
+)
+
+// 用户登录
+val loginResult = authService.login(
+    LoginRequest(account = email, password = password)
+)
+
+loginResult.onSuccess { response ->
+    // 保存 Token
+    tokenManager.saveAccessToken(response.accessToken)
+    tokenManager.saveRefreshToken(response.refreshToken)
+}
+```
+
+### Token 刷新
+
+```kotlin
+val refreshResult = authService.refreshToken(refreshToken)
+
+refreshResult.onSuccess { response ->
+    tokenManager.saveAccessToken(response.accessToken)
+    tokenManager.saveRefreshToken(response.refreshToken)
+}
+```
+
+### 登出
+
+```kotlin
+val accessToken = tokenManager.getAccessToken()
+val refreshToken = tokenManager.getRefreshToken()
+
+authService.logout(accessToken, refreshToken)
+tokenManager.clearTokens()
+```
+
+## 在请求中添加 Token
+
+### 网络请求
+
+```kotlin
+val token = tokenManager.getAccessToken()
+val result = httpClient.get("/api/protected") {
+    header(HttpHeaders.Authorization, "Bearer $token")
+}
+```
+
+### 自动添加 Token（推荐）
+
+创建拦截器或扩展函数自动添加 Token：
+
+```kotlin
+suspend inline fun <reified T> HttpClient.getWithAuth(
+    urlString: String,
+    tokenManager: TokenManager,
+    crossinline block: HttpRequestBuilder.() -> Unit = {}
+): ApiResult<T> {
+    val token = tokenManager.getAccessToken()
+    return get(urlString) {
+        header(HttpHeaders.Authorization, "Bearer $token")
+        block()
+    }
+}
+```
+
+## 登录状态管理
+
+### ViewModel 中
+
+```kotlin
+private val _isLoggedIn = MutableStateFlow<Boolean>(false)
+val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
+
+init {
+    checkLoginStatus()
+}
+
+private fun checkLoginStatus() {
+    _isLoggedIn.value = tokenManager.isLoggedIn()
+}
+
+fun login(account: String, password: String) {
+    viewModelScope.launch {
+        val result = authService.login(LoginRequest(account, password))
+        result.onSuccess { response ->
+            tokenManager.saveAccessToken(response.accessToken)
+            tokenManager.saveRefreshToken(response.refreshToken)
+            _isLoggedIn.value = true
+        }
+    }
+}
+```
+
+### UI 中
+
+```kotlin
+val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+
+if (isLoggedIn) {
+    MainScreen()
+} else {
+    AuthScreen()
+}
+```
+
+## API 响应格式
+
+### 登录响应
+
+```kotlin
+@Serializable
+data class LoginResponse(
+    val accessToken: String,
+    val accessExpires: Long,
+    val refreshToken: String,
+    val refreshExpires: Long,
+    val user: UserDTO
+)
+```
+
+### 统一响应
+
+```kotlin
+@Serializable
+data class ApiResponse<T>(
+    val code: Int,
+    val message: String,
+    val data: T? = null
+)
+```
+
+## 安全注意事项
+
+1. **Token 存储**：使用安全存储（Android: EncryptedSharedPreferences）
+2. **Token 过期**：实现自动刷新机制
+3. **HTTPS**：生产环境必须使用 HTTPS
+4. **不要硬编码**：后端地址和密钥不要硬编码在代码中
+5. **Token 清理**：登出时清除所有 Token
+
+## 最佳实践
+
+1. **统一管理**：所有认证相关操作通过 `AuthService` 和 `TokenManager`
+2. **状态同步**：登录状态变化时同步更新 UI
+3. **错误处理**：登录失败时清除可能存在的旧 Token
+4. **自动刷新**：在 Token 过期前自动刷新
+5. **用户信息**：登录成功后保存用户信息到 ViewModel 状态

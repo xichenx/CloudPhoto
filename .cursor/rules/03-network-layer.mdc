@@ -1,0 +1,148 @@
+---
+globs: shared/**/network/**/*.kt,shared/**/service/**/*.kt
+description: 网络层开发规范
+---
+
+# 网络层开发规范
+
+## 网络客户端
+
+### 创建 HttpClient
+
+使用 [NetworkClientFactory](mdc:shared/src/commonMain/kotlin/com/xichen/cloudphoto/core/network/NetworkClient.kt) 创建客户端：
+
+```kotlin
+val httpClient = NetworkClientFactory.create(
+    baseUrl = "https://api.example.com",
+    timeout = 30_000L,
+    enableLogging = true
+)
+```
+
+### 请求扩展函数
+
+使用提供的扩展函数进行请求：
+
+```kotlin
+// GET 请求
+val result: ApiResult<User> = httpClient.get("/api/user") {
+    header("Authorization", "Bearer $token")
+}
+
+// POST 请求
+val result: ApiResult<LoginResponse> = httpClient.post("/api/auth/login") {
+    setBody(request)
+}
+```
+
+## ApiResult 使用
+
+### 统一响应封装
+
+所有网络请求必须返回 `ApiResult<T>`：
+
+```kotlin
+suspend fun getUser(id: String): ApiResult<User> {
+    return httpClient.get("/api/user/$id")
+}
+```
+
+### 错误处理
+
+使用链式调用处理结果：
+
+```kotlin
+result.onSuccess { user ->
+    // 处理成功
+    Log.i("Tag", "User loaded: ${user.username}")
+}.onError { exception, message ->
+    // 处理错误
+    Log.e("Tag", "Failed to load user: $message", exception)
+    val appError = ErrorHandler.handleError(exception)
+    // 显示用户友好的错误消息
+}
+```
+
+## 服务层实现
+
+### 服务类结构
+
+参考 [AuthService](mdc:shared/src/commonMain/kotlin/com/xichen/cloudphoto/service/AuthService.kt)：
+
+```kotlin
+class MyService(private val baseUrl: String) {
+    private val httpClient: HttpClient = NetworkClientFactory.create(
+        baseUrl = baseUrl,
+        timeout = 30_000L,
+        enableLogging = true
+    )
+    
+    suspend fun doSomething(): ApiResult<Response> {
+        return try {
+            val response = httpClient.post<ApiResponse<Response>>("/api/endpoint") {
+                setBody(request)
+            }
+            
+            when (response) {
+                is ApiResult.Success -> {
+                    if (response.data.code == 200 && response.data.data != null) {
+                        ApiResult.Success(response.data.data)
+                    } else {
+                        ApiResult.Error(
+                            Exception(response.data.message),
+                            response.data.message
+                        )
+                    }
+                }
+                is ApiResult.Error -> response
+                is ApiResult.Loading -> ApiResult.Error(Exception("Unexpected loading state"))
+            }
+        } catch (e: Exception) {
+            ApiResult.Error(e, e.message)
+        }
+    }
+    
+    fun close() {
+        httpClient.close()
+    }
+}
+```
+
+## API 响应格式
+
+后端统一返回格式：
+
+```kotlin
+@Serializable
+data class ApiResponse<T>(
+    val code: Int,
+    val message: String,
+    val data: T? = null
+)
+```
+
+- `code == 200` 表示成功
+- `data` 包含实际数据
+- `message` 包含错误或成功消息
+
+## 认证 Token
+
+### 添加 Token 到请求
+
+```kotlin
+val token = tokenManager.getAccessToken()
+httpClient.get("/api/protected") {
+    header(HttpHeaders.Authorization, "Bearer $token")
+}
+```
+
+### Token 刷新
+
+参考 [AuthService.refreshToken](mdc:shared/src/commonMain/kotlin/com/xichen/cloudphoto/service/AuthService.kt)
+
+## 注意事项
+
+1. **不要硬编码后端地址**：使用配置或构造函数参数
+2. **统一错误处理**：所有错误通过 `ApiResult.Error` 返回
+3. **资源清理**：服务类应该提供 `close()` 方法关闭 HttpClient
+4. **超时配置**：上传大文件时使用更长的超时时间（如 60 秒）

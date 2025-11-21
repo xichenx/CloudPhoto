@@ -1,0 +1,55 @@
+---
+alwaysApply: true
+description: CloudPhoto 项目结构和架构规范
+---
+
+# CloudPhoto 项目结构规范
+
+## 项目架构
+
+CloudPhoto 是一个基于 **Kotlin Multiplatform (KMP)** 的云相册应用，采用共享业务逻辑、平台特定 UI 的架构。
+
+### 目录结构
+
+```
+CloudPhoto/
+├── shared/                    # KMP 共享模块（核心业务逻辑）
+│   ├── commonMain/           # 共享代码
+│   │   ├── core/            # 核心框架（network, auth, di, error, theme, etc.）
+│   │   ├── model/           # 数据模型
+│   │   ├── repository/      # 数据仓库接口
+│   │   ├── service/         # 业务服务层
+│   │   └── storage/         # 对象存储服务抽象和实现
+│   ├── androidMain/         # Android 平台实现
+│   └── iosMain/             # iOS 平台实现
+├── composeApp/               # Android 应用（Jetpack Compose）
+│   └── src/androidMain/
+│       ├── ui/              # UI 组件和 Screen
+│       ├── navigation/      # 导航路由
+│       └── theme/           # 主题实现
+└── iosApp/                  # iOS 应用（SwiftUI）
+    └── iosApp/
+        ├── ContentView.swift
+        └── Navigation/      # 路由协调器
+```
+
+## 核心原则
+
+1. **共享优先**：所有业务逻辑、数据模型、服务层都在 `shared/commonMain` 中实现
+2. **平台特定**：UI 层、平台 API 调用（权限、存储）使用 `expect/actual` 机制
+3. **依赖注入**：使用 [AppContainer](mdc:shared/src/commonMain/kotlin/com/xichen/cloudphoto/core/di/AppContainer.kt) 统一管理依赖
+4. **统一错误处理**：使用 [ApiResult](mdc:shared/src/commonMain/kotlin/com/xichen/cloudphoto/core/network/ApiResult.kt) 封装所有网络请求结果
+
+## 关键文件
+
+- **依赖注入**：[AppContainer.kt](mdc:shared/src/commonMain/kotlin/com/xichen/cloudphoto/core/di/AppContainer.kt)
+- **网络框架**：[NetworkClient.kt](mdc:shared/src/commonMain/kotlin/com/xichen/cloudphoto/core/network/NetworkClient.kt)
+- **认证服务**：[AuthService.kt](mdc:shared/src/commonMain/kotlin/com/xichen/cloudphoto/service/AuthService.kt)
+- **照片服务**：[PhotoService.kt](mdc:shared/src/commonMain/kotlin/com/xichen/cloudphoto/service/PhotoService.kt)
+- **存储服务接口**：[StorageService.kt](mdc:shared/src/commonMain/kotlin/com/xichen/cloudphoto/storage/StorageService.kt)
+- **Android ViewModel**：[AppViewModel.kt](mdc:composeApp/src/androidMain/kotlin/com/xichen/cloudphoto/AppViewModel.kt)
+- **导航图**：[NavGraph.kt](mdc:composeApp/src/androidMain/kotlin/com/xichen/cloudphoto/navigation/NavGraph.kt)
+
+## 架构文档
+
+详细架构说明请参考 [ARCHITECTURE.md](mdc:ARCHITECTURE.md)

@@ -1,0 +1,439 @@
+---
+globs: iosApp/**/*.swift
+description: iOS SwiftUI 开发规范
+---
+
+# iOS SwiftUI 开发规范
+
+## 项目结构
+
+### iOS 应用目录
+
+```
+iosApp/
+├── iosApp/
+│   ├── ContentView.swift          # 主界面
+│   ├── AppViewModel.swift         # ViewModel
+│   ├── Navigation/                # 路由协调器
+│   │   └── NavigationCoordinator.swift
+│   ├── Theme/                     # 主题实现
+│   │   └── AppTheme.swift
+│   └── Core/                      # 核心工具
+│       ├── Responsive.swift       # 响应式布局
+│       └── Toast.swift            # Toast 提示
+```
+
+## ViewModel 规范
+
+### AppViewModel 结构
+
+参考 [AppViewModel.swift](mdc:iosApp/iosApp/AppViewModel.swift)：
+
+```swift
+@MainActor
+class AppViewModel: ObservableObject {
+    @Published var photos: [Photo] = []
+    @Published var configs: [StorageConfig] = []
+    @Published var defaultConfig: StorageConfig? = nil
+    
+    private let photoService: PhotoService
+    private let configService: ConfigService
+    
+    init() {
+        // 初始化服务
+        let container = AppContainerHolder.shared.getContainer()
+        self.photoService = container.photoService
+        self.configService = container.configService
+        
+        loadPhotos()
+        loadConfigs()
+    }
+    
+    func loadPhotos() {
+        Task {
+            do {
+                photos = try await photoService.getAllPhotos()
+            } catch {
+                print("Error loading photos: \(error)")
+            }
+        }
+    }
+}
+```
+
+### 关键要点
+
+1. **@MainActor**: ViewModel 必须标记为 `@MainActor`，确保 UI 更新在主线程
+2. **@Published**: 使用 `@Published` 属性包装器暴露状态
+3. **Task**: 异步操作使用 `Task { }` 包装
+4. **错误处理**: 使用 `do-catch` 处理错误
+
+## View 组件规范
+
+### Screen 组件结构
+
+参考 [ContentView.swift](mdc:iosApp/iosApp/ContentView.swift)：
+
+```swift
+struct PhotosView: View {
+    @ObservedObject var viewModel: AppViewModel
+    @State private var showImagePicker = false
+    
+    var body: some View {
+        NavigationView {
+            // 内容
+        }
+        .sheet(isPresented: $showImagePicker) {
+            ImagePicker(...)
+        }
+    }
+}
+```
+
+### 状态管理
+
+```swift
+// 使用 @State 管理本地状态
+@State private var showDialog = false
+
+// 使用 @ObservedObject 观察 ViewModel
+@ObservedObject var viewModel: AppViewModel
+
+// 使用 @StateObject 创建并拥有 ViewModel
+@StateObject private var viewModel = AppViewModel()
+```
+
+### 导航
+
+#### TabView 导航
+
+```swift
+TabView(selection: $selectedTab) {
+    PhotosView(viewModel: viewModel)
+        .tabItem {
+            Label("照片", systemImage: "photo")
+        }
+        .tag(0)
+}
+```
+
+#### NavigationCoordinator
+
+参考 [NavigationCoordinator.swift](mdc:iosApp/iosApp/Navigation/NavigationCoordinator.swift)：
+
+```swift
+class NavigationCoordinator: ObservableObject {
+    @Published var currentRoute: AppRoute = .photos
+    
+    enum AppRoute: String {
+        case photos = "photos"
+        case albums = "albums"
+        case settings = "settings"
+    }
+    
+    func navigate(to route: AppRoute) {
+        currentRoute = route
+    }
+}
+```
+
+## 响应式布局
+
+### 使用 ResponsiveContainer
+
+参考 [Responsive.swift](mdc:iosApp/iosApp/Core/Responsive.swift)：
+
+```swift
+struct MyView: View {
+    @Environment(\.responsiveConfig) var config
+    
+    var body: some View {
+        ResponsiveContainer {
+            if config.isTablet {
+                // 平板布局
+                HStack {
+                    // 侧边栏 + 主内容
+                }
+            } else {
+                // 手机布局
+                VStack {
+                    // 单列布局
+                }
+            }
+        }
+    }
+}
+```
+
+### 响应式配置
+
+```swift
+let config = ResponsiveConfig(
+    deviceType: .phone,
+    screenSize: .medium,
+    orientation: .portrait,
+    screenWidth: 375,
+    screenHeight: 667
+)
+
+// 使用配置
+if config.isTablet {
+    // 平板逻辑
+}
+```
+
+## 主题系统 - Apple Human Interface Guidelines
+
+### 设计原则
+
+iOS 开发必须遵循 **Apple Human Interface Guidelines (HIG)**：
+
+1. **清晰度**: 清晰的视觉层次和焦点
+2. **一致性**: 使用系统组件和交互模式
+3. **深度**: 通过层次和动画传达层次感
+4. **尊重内容**: 内容优先，界面不喧宾夺主
+
+### 使用 AppTheme
+
+参考 [AppTheme.swift](mdc:iosApp/iosApp/Theme/AppTheme.swift)：
+
+```swift
+// 使用系统颜色（自动适配浅色/深色模式）
+AppTheme.Colors.background  // UIColor.systemBackground
+AppTheme.Colors.surface     // UIColor.secondarySystemBackground
+AppTheme.Colors.text        // UIColor.label
+AppTheme.Colors.secondaryText // UIColor.secondaryLabel
+
+// 使用品牌颜色（青春活力配色）
+AppTheme.Colors.primary     // 天蓝色
+AppTheme.Colors.secondary   // 珊瑚红
+AppTheme.Colors.tertiary    // 薄荷绿
+```
+
+### 应用主题
+
+```swift
+@main
+struct iOSApp: App {
+    var body: some Scene {
+        WindowGroup {
+            ThemedView {
+                ContentView()
+            }
+            .tint(AppTheme.Colors.primary) // 设置全局 tint 颜色
+        }
+    }
+}
+```
+
+### 设计规范
+
+#### 圆角
+```swift
+// 使用 AppTheme.Design 中的圆角值
+.cornerRadius(AppTheme.Design.cornerRadiusSmall)   // 8pt
+.cornerRadius(AppTheme.Design.cornerRadiusMedium)  // 12pt
+.cornerRadius(AppTheme.Design.cornerRadiusLarge)   // 16pt
+.cornerRadius(AppTheme.Design.cornerRadiusXLarge)  // 24pt
+```
+
+#### 间距
+```swift
+// 使用 AppTheme.Design 中的间距值
+.padding(AppTheme.Design.spacingM)  // 16pt
+.spacing(AppTheme.Design.spacingS)  // 8pt
+```
+
+#### 字体
+```swift
+// 使用系统字体（San Francisco）
+.font(.system(size: AppTheme.Design.fontSizeHeadline, weight: .semibold))
+.font(.system(size: AppTheme.Design.fontSizeBody))
+.font(.largeTitle)  // 系统预设字体
+```
+
+#### SF Symbols
+```swift
+// 使用系统图标
+Image(systemName: "photo")
+Image(systemName: "camera.fill")
+Image(systemName: "person.circle")
+```
+
+### 样式扩展
+
+使用 `AppTheme` 提供的样式扩展：
+
+```swift
+// 卡片样式
+.cardStyle()
+
+// 主要按钮样式
+.primaryButtonStyle()
+
+// 次要按钮样式
+.secondaryButtonStyle()
+```
+
+## Toast 提示
+
+### 使用 Toast
+
+参考 [Toast.swift](mdc:iosApp/iosApp/Core/Toast.swift)：
+
+```swift
+struct MyView: View {
+    @State private var toastMessage: String?
+    
+    var body: some View {
+        Button("操作") {
+            toastMessage = "操作成功"
+        }
+        .toast(message: $toastMessage, type: .success)
+    }
+}
+```
+
+### Toast 类型
+
+```swift
+enum ToastType {
+    case info
+    case success
+    case warning
+    case error
+}
+```
+
+## 相机和图片选择
+
+### UIImagePickerController 封装
+
+```swift
+struct ImagePicker: UIViewControllerRepresentable {
+    @Binding var image: UIImage?
+    @Binding var showUploadDialog: Bool
+    
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.delegate = context.coordinator
+        picker.sourceType = .camera
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: ImagePicker
+        
+        init(_ parent: ImagePicker) {
+            self.parent = parent
+        }
+        
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.image = image
+                parent.showUploadDialog = true
+            }
+            picker.dismiss(animated: true)
+        }
+    }
+}
+```
+
+### 使用图片选择器
+
+```swift
+@State private var showImagePicker = false
+@State private var selectedImage: UIImage?
+
+.sheet(isPresented: $showImagePicker) {
+    ImagePicker(image: $selectedImage, showUploadDialog: $showUploadDialog)
+}
+```
+
+## KMP 集成
+
+### 调用共享代码
+
+```swift
+import Shared
+
+// 使用共享的数据模型
+let photo: Photo = ...
+
+// 调用共享的服务
+let result = try await photoService.uploadPhoto(
+    photoData: kotlinByteArray,
+    fileName: fileName,
+    mimeType: mimeType,
+    width: width,
+    height: height
+)
+```
+
+### 数据类型转换
+
+```swift
+// Swift Data 转 Kotlin ByteArray
+let kotlinByteArray = KotlinByteArray(size: Int32(photoData.count))
+for (index, byte) in photoData.enumerated() {
+    kotlinByteArray.set(index: Int32(index), value: Int8(bitPattern: byte))
+}
+
+// Kotlin ByteArray 转 Swift Data
+let data = Data(bytes: kotlinByteArray, count: Int(kotlinByteArray.size))
+```
+
+## 错误处理
+
+### 异步错误处理
+
+```swift
+func loadData() {
+    Task {
+        do {
+            let result = try await service.getData()
+            // 处理成功
+        } catch {
+            print("Error: \(error)")
+            // 显示错误提示
+            toastMessage = "加载失败"
+        }
+    }
+}
+```
+
+### Result 处理
+
+```swift
+let result = try await photoService.uploadPhoto(...)
+if result.isSuccess {
+    // 成功
+    loadPhotos()
+} else if let error = result.exceptionOrNull() {
+    // 失败
+    print("Error: \(error)")
+}
+```
+
+## 最佳实践
+
+1. **主线程更新**: 所有 UI 更新必须在主线程，使用 `@MainActor`
+2. **状态管理**: 使用 `@Published` 和 `@State` 管理状态
+3. **异步操作**: 使用 `Task { }` 处理异步操作
+4. **资源管理**: 及时释放图片、网络资源
+5. **错误处理**: 所有异步操作都要处理错误
+6. **响应式设计**: 使用 `ResponsiveContainer` 适配不同设备
+7. **主题支持**: 使用 `ThemedView` 支持深色模式
+
+## 注意事项
+
+- ⚠️ **不要在主线程执行耗时操作**: 使用 `Task` 或 `async/await`
+- ⚠️ **ViewModel 生命周期**: 使用 `@StateObject` 创建，`@ObservedObject` 观察
+- ⚠️ **内存管理**: SwiftUI 自动管理，但要注意循环引用
+- ⚠️ **KMP 类型转换**: 注意 Swift 和 Kotlin 类型差异

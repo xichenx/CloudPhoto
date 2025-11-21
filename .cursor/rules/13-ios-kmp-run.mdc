@@ -1,0 +1,155 @@
+---
+globs: "iosApp/**/*,shared/src/iosMain/**/*"
+description: iOS 上运行 KMP 项目的技能与排错
+alwaysApply: false
+---
+
+# iOS 上运行 KMP 项目（CloudPhoto）
+
+本文档说明如何在 iOS 模拟器/真机上成功构建并运行 CloudPhoto，以及常见问题的排查与修复。
+
+## 前置条件
+
+### 开发环境
+
+- **macOS**: 建议最新稳定版（Xcode 要求）
+- **Xcode**: 最新稳定版（当前项目 `IPHONEOS_DEPLOYMENT_TARGET = 18.2`）
+- **JDK**: 17+（Gradle 与 Kotlin 编译需要）
+- **Gradle**: 使用项目自带 `gradlew`，无需单独安装
+
+### 项目结构要点
+
+- **共享模块**: `shared/` — 含 `commonMain`、`iosMain`，产出 `Shared.framework`
+- **iOS 应用**: `iosApp/` — SwiftUI 应用，依赖 `Shared` 框架
+- **构建顺序**: Xcode 先执行 “Compile Kotlin Framework” 脚本（调用 Gradle），再编译 Swift
+
+## 一、从命令行构建 Kotlin 框架（推荐先验证）
+
+在项目根目录执行，确保 shared 模块能成功产出 iOS 框架：
+
+```bash
+# 模拟器 Debug（Apple Silicon 常用）
+./gradlew :shared:linkDebugFrameworkIosSimulatorArm64 -PXCODE_CONFIGURATION=DEBUG
+
+# 模拟器 Release
+./gradlew :shared:linkReleaseFrameworkIosSimulatorArm64 -PXCODE_CONFIGURATION=RELEASE
+
+# 真机 Debug
+./gradlew :shared:linkDebugFrameworkIosArm64 -PXCODE_CONFIGURATION=DEBUG
+
+# 真机 Release
+./gradlew :shared:linkReleaseFrameworkIosArm64 -PXCODE_CONFIGURATION=RELEASE
+```
+
+成功时框架输出路径示例：
+
+- 模拟器: `shared/build/bin/iosSimulatorArm64/debugFramework/Shared.framework` 或 `releaseFramework/`
+- 真机: `shared/build/bin/iosArm64/debugFramework/Shared.framework` 或 `releaseFramework/`
+
+若此处失败，先解决 Gradle/Kotlin 编译问题，再在 Xcode 中构建。
+
+### 快速验证 Kotlin 编译（推荐）
+
+**不必打开 Xcode**，在项目根目录直接跑 Kotlin 编译，排错比 Xcode 快很多：
+
+```bash
+# 真机架构
+./gradlew :shared:compileKotlinIosArm64
+
+# 模拟器架构（Apple Silicon）
+./gradlew :shared:compileKotlinIosSimulatorArm64
+```
+
+出现 Kotlin 报错时先修这里，通过后再在 Xcode 里 Build/Run。
+
+## 二、Xcode 配置要点
+
+### 2.1 框架搜索路径（FRAMEWORK_SEARCH_PATHS）
+
+iOS  target（iosApp）必须能找到 `Shared.framework`。本工程已在 target 的 Debug/Release 中配置：
+
+- `$(SRCROOT)/../shared/build/bin/iosSimulatorArm64/debugFramework`
+- `$(SRCROOT)/../shared/build/bin/iosSimulatorArm64/releaseFramework`
+- `$(SRCROOT)/../shared/build/bin/iosArm64/debugFramework`
+- `$(SRCROOT)/../shared/build/bin/iosArm64/releaseFramework`
+
+若你手动改过 target 或新建 target，需在 **Build Settings → Framework Search Paths** 中加上以上路径（或等价路径），否则会出现 `No such module 'Shared'` 或链接错误。
+
+### 2.2 链接 Shared 框架
+
+target 需链接 `Shared` 框架（例如在 **Build Phases → Link Binary With Libraries** 中添加 `Shared.framework`，或通过 **Other Linker Flags** 使用 `-framework Shared`）。本工程已通过 **Other Linker Flags** 配置。
+
+### 2.3 “Compile Kotlin Framework” 脚本
+
+- **位置**: Xcode → iosApp target → **Build Phases** → **Compile Kotlin Framework**（Run Script，排在 Sources 之前）
+- **作用**: 根据当前 **SDK**（模拟器/真机）和 **Configuration**（Debug/Release）调用对应 Gradle 任务，生成上述路径下的 `Shared.framework`。
+- **跳过脚本**（仅调试用）: 设置环境变量 `OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED=YES`，则不再执行 Gradle，适用于已提前用命令行生成好框架的情况。
+
+### 2.4 配置与签名
+
+- **Configuration**: `iosApp/Configuration/Config.xcconfig` 中可配置 `TEAM_ID`、`PRODUCT_BUNDLE_IDENTIFIER` 等。
+- **签名**: 在 Xcode 的 **Signing & Capabilities** 中选择正确的 Team；真机运行必须配置有效签名。
+
+## 三、在 Xcode 中运行
+
+1. 用 Xcode 打开 `iosApp/iosApp.xcodeproj`。
+2. 选择目标设备：**iOS Simulator（推荐先选模拟器）** 或真机。
+3. 选择 Scheme：**iosApp**，Configuration 一般为 **Debug**。
+4. **Product → Build** 或 **Run**（⌘R）。
+
+首次构建会先执行 “Compile Kotlin Framework”，再编译 Swift；若 Gradle 或 Kotlin 报错，会在 Build 日志中体现。
+
+## 四、常见问题与排查
+
+### 4.1 “No such module 'Shared'”
+
+- **原因**: Swift 编译时找不到 `Shared.framework`。
+- **处理**:
+  1. 确认 **Framework Search Paths** 包含 `shared/build/bin/...` 下与当前 SDK、Configuration 对应的路径（见 2.1）。
+  2. 先命令行执行一次对应任务（如 `linkDebugFrameworkIosSimulatorArm64`），确认 `shared/build/bin/...` 下已生成 `Shared.framework`，再在 Xcode 中 Clean Build Folder 后重新构建。
+
+### 4.2 Gradle 构建失败（Xcode 中或命令行）
+
+- **网络**: 首次或依赖变更时需拉取依赖，确保网络可用；若使用代理，在 `~/.gradle/gradle.properties` 中配置 `systemProp.http(s).proxy`。
+- **JDK**: 使用 `java -version` 确认为 17+；Xcode 使用的环境可能与终端不同，可在 Run Script 中临时加 `export JAVA_HOME=...` 指向正确 JDK。
+- **任务不存在**: 若报 `linkDebugFrameworkIosSimulatorArm64` 等任务不存在，检查 `shared/build.gradle.kts` 中是否配置了 `iosSimulatorArm64()` 和 `iosArm64()` 以及 `binaries.framework { baseName = "Shared" }`。
+
+### 4.3 真机运行/签名问题
+
+- **未选 Team / 证书无效**: 在 **Signing & Capabilities** 中选好 Development Team，并确保设备已信任开发者。
+- **Bundle ID 冲突**: 修改 `Config.xcconfig` 或 target 的 **Bundle Identifier**，避免与已有应用冲突。
+
+### 4.4 Kotlin 与 Swift 类型/API 不匹配
+
+- **修改了 commonMain/iosMain 的 API**：需重新构建 Kotlin 框架（在 Xcode 中再次构建或命令行执行对应 `link*Framework*`），否则 Swift 侧可能仍在使用旧接口。
+- **Optional / 可空性**: KMP 导出到 Swift 的可空类型要按 Swift 的 `Optional` 使用，注意判空与类型转换。
+
+### 4.5 沙箱或权限导致 Gradle 失败
+
+若在 CI 或受限环境中运行，出现无法写 `~/.gradle` 等错误，需放开对 Gradle 缓存与项目目录的写权限，或配置 `GRADLE_USER_HOME` 到可写目录。
+
+## 五、验证清单（确保 iOS 成功运行）
+
+- [ ] 在项目根目录执行 `./gradlew :shared:linkDebugFrameworkIosSimulatorArm64` 无报错。
+- [ ] 存在 `shared/build/bin/iosSimulatorArm64/debugFramework/Shared.framework`。
+- [ ] Xcode 中 iosApp target 的 **Framework Search Paths** 包含上述路径（或等价）。
+- [ ] Xcode 中 iosApp target 已链接 **Shared** 框架（Other Linker Flags 或 Link Binary With Libraries）。
+- [ ] **Build Phases** 中 “Compile Kotlin Framework” 在 **Compile Sources** 之前。
+- [ ] 选择 **iOS Simulator** + **Debug** 能成功 Build 并 Run。
+- [ ] 真机运行时已配置签名与 Bundle ID。
+
+## 六、KMP 结构建议（减少 iOS 编译问题）
+
+- **commonMain**：放绝大部分逻辑（Base64、OSS 签名、时间工具、业务逻辑等），只写一次，多端复用。
+- **iosMain**：只写**必须**用平台 API 的部分（expect/actual 实现：文件、存储、权限、日志等）。
+- 能用 KMP 官方/跨平台库的尽量用 commonMain，避免在 iosMain 写平台代码，可显著减少 iOS 编译错误。
+
+## 七、相关规则与文档
+
+- **SwiftUI 与 UI 规范**: [11-ios-swiftui.mdc](mdc:.cursor/rules/11-ios-swiftui.mdc)
+- **KMP expect/actual 与共享代码**: [02-kotlin-multiplatform.mdc](mdc:.cursor/rules/02-kotlin-multiplatform.mdc)
+- **项目结构**: [01-project-structure.mdc](mdc:.cursor/rules/01-project-structure.mdc)
+
+---
+
+**本地验证建议**：改完 Kotlin 后先执行 `./gradlew :shared:compileKotlinIosArm64`，通过再在 Xcode 构建。

@@ -9,7 +9,6 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlin.text.Charsets.UTF_8
 
 class AliyunOssService(private val httpClient: HttpClient) : StorageService {
     

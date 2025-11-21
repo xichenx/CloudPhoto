@@ -1,0 +1,84 @@
+---
+globs: shared/**/*.kt
+description: Kotlin Multiplatform 开发规范
+---
+
+# Kotlin Multiplatform 开发规范
+
+## expect/actual 机制
+
+### 何时使用 expect/actual
+
+以下场景必须使用 `expect/actual`：
+- 平台特定 API（文件系统、网络、权限、存储）
+- 平台特定 UI 组件
+- 平台特定工具类
+
+### 实现规范
+
+1. **expect 声明在 commonMain**
+```kotlin
+// commonMain
+expect class TokenManager {
+    constructor(context: Any?)
+    fun saveAccessToken(token: String)
+    fun getAccessToken(): String?
+}
+```
+
+2. **actual 实现在平台目录**
+```kotlin
+// androidMain
+actual class TokenManager actual constructor(context: Any?) {
+    private val prefs = context.getSharedPreferences(...)
+    actual fun saveAccessToken(token: String) { ... }
+    actual fun getAccessToken(): String? { ... }
+}
+```
+
+3. **参考实现**
+- [TokenManager](mdc:shared/src/commonMain/kotlin/com/xichen/cloudphoto/core/auth/TokenManager.kt) - 认证 Token 管理
+- [Logger](mdc:shared/src/commonMain/kotlin/com/xichen/cloudphoto/core/logger/Logger.kt) - 日志框架
+- [DeviceInfo](mdc:shared/src/commonMain/kotlin/com/xichen/cloudphoto/core/ui/DeviceInfo.kt) - 设备信息
+
+## 共享代码规范
+
+### 数据模型
+
+- 使用 `@Serializable` 注解（kotlinx.serialization）
+- 所有模型放在 `model/` 目录
+- 使用 `kotlinx.datetime.Instant` 处理时间
+
+```kotlin
+@Serializable
+data class Photo(
+    val id: String,
+    val name: String,
+    val url: String,
+    val createdAt: Instant
+)
+```
+
+### 服务层
+
+- 所有业务逻辑在 `service/` 目录
+- 使用 `suspend` 函数处理异步操作
+- 返回 `Result<T>` 或 `ApiResult<T>`
+
+### Repository 层
+
+- Repository 接口在 `commonMain`
+- 平台特定实现（如 SharedPreferences）在 `androidMain`/`iosMain`
+- 使用 `expect` 函数声明平台特定操作
+
+## 依赖管理
+
+- 共享依赖在 `shared/build.gradle.kts` 的 `commonMain` sourceSet
+- 平台特定依赖在对应的 `androidMain`/`iosMain` sourceSet
+- 使用 `libs.versions.toml` 统一管理版本
+
+## 错误处理
+
+- 网络错误使用 [ApiResult](mdc:shared/src/commonMain/kotlin/com/xichen/cloudphoto/core/network/ApiResult.kt)
+- 业务错误使用 `Result<T>`
+- 统一通过 [ErrorHandler](mdc:shared/src/commonMain/kotlin/com/xichen/cloudphoto/core/error/ErrorHandler.kt) 处理

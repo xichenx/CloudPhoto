@@ -8,29 +8,36 @@ class AppViewModel: ObservableObject {
     @Published var configs: [StorageConfig] = []
     @Published var defaultConfig: StorageConfig? = nil
     
+    /// 登录状态，未登录时显示登录/注册界面
+    @Published var isLoggedIn: Bool = false
+    /// 当前用户信息（登录后有效）
+    @Published var currentUser: UserDTO? = nil
+    /// 认证相关错误信息（登录/注册/发送验证码失败时设置，UI 展示后建议清空）
+    @Published var authError: String? = nil
+    
     private let photoService: PhotoService
     private let configService: ConfigService
     private let albumService: AlbumService
+    private let authService: AuthService
+    private let tokenManager: TokenManager
     
     init() {
-        let configRepository = ConfigRepository()
-        let photoRepository = PhotoRepository()
-        let albumRepository = AlbumRepository()
+        let container = AppContainerHolder.shared.getContainer()
+        self.photoService = container.photoService
+        self.configService = container.configService
+        self.albumService = container.albumService
+        self.authService = container.authService
+        self.tokenManager = TokenManager(context: nil)
         
-        let httpClient = HttpClient()
-        self.photoService = PhotoService(
-            photoRepository: photoRepository,
-            configRepository: configRepository,
-            httpClient: httpClient
-        )
-        self.configService = ConfigService(configRepository: configRepository)
-        self.albumService = AlbumService(
-            albumRepository: albumRepository,
-            photoRepository: photoRepository
-        )
-        
-        loadPhotos()
-        loadConfigs()
+        checkLoginStatus()
+        if isLoggedIn {
+            loadPhotos()
+            loadConfigs()
+        }
+    }
+    
+    private func checkLoginStatus() {
+        isLoggedIn = tokenManager.isLoggedIn()
     }
     
     func loadPhotos() {
@@ -62,7 +69,7 @@ class AppViewModel: ObservableObject {
                     kotlinByteArray.set(index: Int32(index), value: Int8(bitPattern: byte))
                 }
                 
-                let result = try await photoService.uploadPhoto(
+                _ = try await photoService.uploadPhotoThrowing(
                     photoData: kotlinByteArray,
                     fileName: fileName,
                     mimeType: mimeType,
@@ -71,11 +78,7 @@ class AppViewModel: ObservableObject {
                     configId: nil,
                     albumId: nil
                 )
-                if result.isSuccess {
-                    loadPhotos()
-                } else if let error = result.exceptionOrNull() {
-                    print("Error uploading photo: \(error)")
-                }
+                loadPhotos()
             } catch {
                 print("Error uploading photo: \(error)")
             }
@@ -85,12 +88,8 @@ class AppViewModel: ObservableObject {
     func deletePhoto(photoId: String) {
         Task {
             do {
-                let result = try await photoService.deletePhoto(photoId: photoId)
-                if result.isSuccess {
-                    loadPhotos()
-                } else if let error = result.exceptionOrNull() {
-                    print("Error deleting photo: \(error)")
-                }
+                try await photoService.deletePhotoThrowing(photoId: photoId)
+                loadPhotos()
             } catch {
                 print("Error deleting photo: \(error)")
             }
@@ -128,6 +127,115 @@ class AppViewModel: ObservableObject {
                 print("Error setting default config: \(error)")
             }
         }
+    }
+    
+    // MARK: - 认证
+    
+    /// 登录（支持邮箱或手机号）
+    func login(account: String, password: String) {
+        authError = nil
+        Task {
+            do {
+                let request = LoginRequest(account: account, password: password)
+                let outcome = try await authService.loginOutcome(request: request)
+                await MainActor.run {
+                if let response = outcome.first {
+                    tokenManager.saveAccessToken(token: response.accessToken)
+                    tokenManager.saveRefreshToken(token: response.refreshToken)
+                    currentUser = response.user
+                    isLoggedIn = true
+                    loadPhotos()
+                    loadConfigs()
+                } else if let message = outcome.second {
+                    authError = String(message)
+                }
+                }
+            } catch {
+                await MainActor.run { authError = error.localizedDescription }
+            }
+        }
+    }
+    
+    /// 注册
+    func register(username: String, email: String, password: String, emailCode: String, phone: String? = nil) {
+        authError = nil
+        Task {
+            do {
+                let request = RegisterRequest(
+                    username: username,
+                    password: password,
+                    email: email,
+                    phone: phone,
+                    emailCode: emailCode
+                )
+                let outcome = try await authService.registerOutcome(request: request)
+                await MainActor.run {
+                if outcome.first != nil {
+                    // 注册成功后自动登录
+                    login(account: email, password: password)
+                } else if let message = outcome.second {
+                    authError = String(message)
+                }
+                }
+            } catch {
+                await MainActor.run { authError = error.localizedDescription }
+            }
+        }
+    }
+    
+    /// 发送邮箱验证码
+    func sendEmailCode(email: String, type: String = "register") {
+        authError = nil
+        Task {
+            do {
+                let outcome = try await authService.sendEmailCodeOutcome(email: email, type: type)
+                await MainActor.run {
+                    let success = outcome.first?.boolValue ?? true
+                    if !success, let message = outcome.second {
+                        authError = String(message)
+                    }
+                }
+            } catch {
+                await MainActor.run { authError = error.localizedDescription }
+            }
+        }
+    }
+    
+    /// Mock 登录（开发测试用）
+    func mockLogin() {
+        authError = nil
+        let mockUser = UserDTO(
+            id: "mock_user_001",
+            username: "测试用户",
+            email: "test@example.com",
+            phone: "13800138000",
+            role: "user",
+            avatar: nil,
+            createdAt: KotlinLong(value: Int64(Date().timeIntervalSince1970 * 1000))
+        )
+        tokenManager.saveAccessToken(token: "mock_access_token_\(Int64(Date().timeIntervalSince1970))")
+        tokenManager.saveRefreshToken(token: "mock_refresh_token_\(Int64(Date().timeIntervalSince1970))")
+        currentUser = mockUser
+        isLoggedIn = true
+        loadPhotos()
+        loadConfigs()
+    }
+    
+    /// 登出
+    func logout() {
+        if let accessToken = tokenManager.getAccessToken(), let refreshToken = tokenManager.getRefreshToken() {
+            Task {
+                _ = try? await authService.logout(accessToken: accessToken, refreshToken: refreshToken)
+            }
+        }
+        tokenManager.clearTokens()
+        currentUser = nil
+        isLoggedIn = false
+    }
+    
+    /// 清除认证错误（UI 展示 Toast 后调用）
+    func clearAuthError() {
+        authError = nil
     }
 }
 

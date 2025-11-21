@@ -4,9 +4,5 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
-	<key>NSCameraUsageDescription</key>
-	<string>需要访问相机以拍摄照片并上传到云端</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>需要访问相册以选择照片并上传到云端</string>
 </dict>
 </plist>

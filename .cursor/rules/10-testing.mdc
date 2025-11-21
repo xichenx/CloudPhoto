@@ -1,0 +1,160 @@
+---
+description: 测试规范和最佳实践
+---
+
+# 测试规范
+
+## 单元测试
+
+### ViewModel 测试
+
+```kotlin
+class AppViewModelTest {
+    private lateinit var viewModel: AppViewModel
+    private lateinit var mockPhotoService: PhotoService
+    
+    @Before
+    fun setup() {
+        mockPhotoService = mockk()
+        // 设置 ViewModel
+    }
+    
+    @Test
+    fun `loadPhotos should update photos state`() = runTest {
+        // Given
+        val photos = listOf(Photo(...))
+        coEvery { mockPhotoService.getAllPhotos() } returns photos
+        
+        // When
+        viewModel.loadPhotos()
+        
+        // Then
+        assertEquals(photos, viewModel.photos.value)
+    }
+}
+```
+
+### Service 测试
+
+```kotlin
+class PhotoServiceTest {
+    private lateinit var photoService: PhotoService
+    private lateinit var mockRepository: PhotoRepository
+    private lateinit var mockHttpClient: HttpClient
+    
+    @Test
+    fun `uploadPhoto should return success when upload succeeds`() = runTest {
+        // Given
+        val photoData = byteArrayOf(1, 2, 3)
+        val expectedUrl = "https://example.com/photo.jpg"
+        
+        // When
+        val result = photoService.uploadPhoto(
+            photoData = photoData,
+            fileName = "photo.jpg",
+            mimeType = "image/jpeg",
+            width = 1920,
+            height = 1080
+        )
+        
+        // Then
+        assertTrue(result.isSuccess)
+        assertEquals(expectedUrl, result.getOrNull()?.url)
+    }
+}
+```
+
+## 网络测试
+
+### Mock HttpClient
+
+```kotlin
+class AuthServiceTest {
+    @Test
+    fun `login should return success with valid credentials`() = runTest {
+        // Given
+        val mockResponse = ApiResponse(
+            code = 200,
+            message = "Success",
+            data = LoginResponse(...)
+        )
+        
+        // Mock HTTP client
+        // ...
+        
+        // When
+        val result = authService.login(LoginRequest("user@example.com", "password"))
+        
+        // Then
+        assertTrue(result is ApiResult.Success)
+    }
+}
+```
+
+## Compose UI 测试
+
+### Screen 测试
+
+```kotlin
+@Composable
+fun PhotosScreenTest() {
+    val viewModel = mockk<AppViewModel>()
+    every { viewModel.photos } returns MutableStateFlow(emptyList())
+    
+    PhotosScreen(viewModel = viewModel)
+    
+    // 验证 UI 元素
+}
+```
+
+## 存储服务测试
+
+### Mock 存储服务
+
+```kotlin
+class StorageServiceTest {
+    @Test
+    fun `uploadPhoto should return URL on success`() = runTest {
+        val mockService = mockk<StorageService>()
+        coEvery { 
+            mockService.uploadPhoto(any(), any(), any(), any())
+        } returns Result.success("https://example.com/photo.jpg")
+        
+        val result = mockService.uploadPhoto(...)
+        assertTrue(result.isSuccess)
+    }
+}
+```
+
+## 测试工具
+
+### 推荐库
+
+- `kotlinx.coroutines.test` - 协程测试
+- `mockk` - Kotlin Mock 框架
+- `turbine` - Flow 测试
+- `junit` - 测试框架
+
+## 测试覆盖率
+
+### 目标覆盖率
+
+- 核心业务逻辑：≥ 80%
+- Service 层：≥ 70%
+- Repository 层：≥ 60%
+- UI 层：≥ 50%
+
+## 最佳实践
+
+1. **测试隔离**：每个测试应该独立，不依赖其他测试
+2. **清晰命名**：测试方法名应该描述测试场景
+3. **AAA 模式**：Arrange-Act-Assert
+4. **Mock 外部依赖**：网络、数据库、文件系统等
+5. **测试边界情况**：空值、异常、边界值
+
+## 注意事项
+
+- ⚠️ **不要测试实现细节**：测试行为，不是实现
+- ⚠️ **避免过度 Mock**：只 Mock 外部依赖
+- ⚠️ **保持测试快速**：单元测试应该在毫秒级完成
+- ⚠️ **测试失败消息**：提供清晰的失败消息

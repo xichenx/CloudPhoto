@@ -1,0 +1,191 @@
+---
+globs: composeApp/**/*.kt
+description: Android Jetpack Compose 开发规范
+---
+
+# Android Jetpack Compose 开发规范
+
+## UI 结构
+
+### Screen 组件
+
+所有 Screen 放在 `ui/` 目录，参考 [PhotosScreen](mdc:composeApp/src/androidMain/kotlin/com/xichen/cloudphoto/ui/PhotosScreen.kt)：
+
+```kotlin
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MyScreen(viewModel: AppViewModel = viewModel()) {
+    val state by viewModel.myState.collectAsState()
+    
+    Scaffold(
+        topBar = { TopAppBar(title = { Text("标题") }) },
+        floatingActionButton = { /* FAB */ }
+    ) { paddingValues ->
+        // 内容
+    }
+}
+```
+
+### ViewModel 使用
+
+- 使用 `viewModel()` 获取 ViewModel 实例
+- 通过 `StateFlow.collectAsState()` 收集状态
+- 所有业务操作通过 ViewModel 方法调用
+
+```kotlin
+@Composable
+fun MyScreen(viewModel: AppViewModel = viewModel()) {
+    val photos by viewModel.photos.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    
+    // UI
+}
+```
+
+## 导航
+
+### 路由定义
+
+在 [Screen](mdc:composeApp/src/androidMain/kotlin/com/xichen/cloudphoto/navigation/NavGraph.kt) sealed class 中定义：
+
+```kotlin
+sealed class Screen(val route: String) {
+    object Photos : Screen("photos")
+    object Albums : Screen("albums")
+    object Settings : Screen("settings")
+}
+```
+
+### 导航图
+
+使用 [NavGraph](mdc:composeApp/src/androidMain/kotlin/com/xichen/cloudphoto/navigation/NavGraph.kt) 定义导航：
+
+```kotlin
+NavHost(
+    navController = navController,
+    startDestination = Screen.Photos.route
+) {
+    composable(Screen.Photos.route) {
+        PhotosScreen(viewModel = viewModel)
+    }
+}
+```
+
+### 导航操作
+
+```kotlin
+navController.navigate(Screen.Photos.route) {
+    popUpTo(navController.graph.startDestinationId) {
+        saveState = true
+    }
+    launchSingleTop = true
+    restoreState = true
+}
+```
+
+## 状态管理
+
+### ViewModel 状态
+
+[AppViewModel](mdc:composeApp/src/androidMain/kotlin/com/xichen/cloudphoto/AppViewModel.kt) 使用 `StateFlow` 暴露状态：
+
+```kotlin
+private val _photos = MutableStateFlow<List<Photo>>(emptyList())
+val photos: StateFlow<List<Photo>> = _photos.asStateFlow()
+```
+
+### UI 收集状态
+
+```kotlin
+val photos by viewModel.photos.collectAsState()
+```
+
+## 权限处理
+
+### 相机权限
+
+参考 [PhotosScreen](mdc:composeApp/src/androidMain/kotlin/com/xichen/cloudphoto/ui/PhotosScreen.kt)：
+
+```kotlin
+val permissionLauncher = rememberLauncherForActivityResult(
+    ActivityResultContracts.RequestPermission()
+) { isGranted ->
+    if (isGranted) {
+        // 执行操作
+    }
+}
+
+// 请求权限
+permissionLauncher.launch(Manifest.permission.CAMERA)
+```
+
+### 拍照
+
+```kotlin
+val cameraLauncher = rememberLauncherForActivityResult(
+    contract = ActivityResultContracts.TakePicture()
+) { success ->
+    if (success) {
+        // 处理照片
+    }
+}
+```
+
+## 响应式布局
+
+### 使用 ResponsiveContainer
+
+```kotlin
+@Composable
+fun MyScreen() {
+    ResponsiveContainer {
+        val config = rememberResponsiveConfig()
+        
+        if (config.isTablet) {
+            // 平板布局
+        } else {
+            // 手机布局
+        }
+    }
+}
+```
+
+## 主题
+
+### 应用主题
+
+使用 [Theme](mdc:composeApp/src/androidMain/kotlin/com/xichen/cloudphoto/theme/Theme.kt)：
+
+```kotlin
+@Composable
+fun App() {
+    CloudPhotoTheme(themeMode = ThemeMode.SYSTEM) {
+        // 应用内容
+    }
+}
+```
+
+## Toast 提示
+
+使用 [Toast](mdc:composeApp/src/androidMain/kotlin/com/xichen/cloudphoto/core/Toast.kt)：
+
+```kotlin
+@Composable
+fun MyScreen() {
+    val showToast = rememberToast()
+    
+    Button(onClick = {
+        showToast("操作成功", ToastType.SUCCESS)
+    }) {
+        Text("点击")
+    }
+}
+```
+
+## 最佳实践
+
+1. **边到边布局**：使用 `WindowInsets` 处理状态栏和导航栏
+2. **状态提升**：复杂状态提升到 ViewModel
+3. **性能优化**：使用 `LazyColumn`/`LazyVerticalGrid` 处理长列表
+4. **资源管理**：及时关闭 `HttpClient`、释放图片资源
+5. **错误处理**：使用 `ErrorHandler` 统一处理错误并显示用户友好提示

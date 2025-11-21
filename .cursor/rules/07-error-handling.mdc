@@ -1,0 +1,153 @@
+---
+globs: **/*.kt
+description: 错误处理规范
+---
+
+# 错误处理规范
+
+## ApiResult 使用
+
+### 网络请求结果
+
+所有网络请求返回 [ApiResult](mdc:shared/src/commonMain/kotlin/com/xichen/cloudphoto/core/network/ApiResult.kt)：
+
+```kotlin
+sealed class ApiResult<out T> {
+    data class Success<T>(val data: T) : ApiResult<T>()
+    data class Error(val exception: Exception, val message: String?) : ApiResult<Nothing>()
+    object Loading : ApiResult<Nothing>()
+}
+```
+
+### 链式处理
+
+```kotlin
+val result: ApiResult<User> = httpClient.get("/api/user")
+
+result.onSuccess { user ->
+    // 处理成功
+    Log.i("Tag", "User: ${user.username}")
+}.onError { exception, message ->
+    // 处理错误
+    Log.e("Tag", "Error: $message", exception)
+    val appError = ErrorHandler.handleError(exception)
+    // 显示用户友好提示
+}
+```
+
+## ErrorHandler
+
+### 统一错误处理
+
+使用 [ErrorHandler](mdc:shared/src/commonMain/kotlin/com/xichen/cloudphoto/core/error/ErrorHandler.kt) 处理错误：
+
+```kotlin
+try {
+    // 可能出错的操作
+} catch (e: Exception) {
+    val appError = ErrorHandler.handleError(e)
+    val userMessage = ErrorHandler.getUserMessage(appError)
+    // 显示给用户
+}
+```
+
+### 错误类型
+
+- `NetworkError`: 网络相关错误
+- `StorageError`: 存储相关错误
+- `ValidationError`: 验证错误
+- `UnknownError`: 未知错误
+
+## Result 使用
+
+### 业务操作结果
+
+非网络操作使用标准 `Result<T>`：
+
+```kotlin
+suspend fun uploadPhoto(...): Result<Photo> {
+    return try {
+        // 操作
+        Result.success(photo)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+}
+```
+
+### 处理 Result
+
+```kotlin
+result.onSuccess { photo ->
+    Log.i("Tag", "Photo uploaded: ${photo.id}")
+}.onFailure { error ->
+    val appError = ErrorHandler.handleError(error)
+    Log.e("Tag", "Upload failed: ${appError.message}", error)
+}
+```
+
+## ViewModel 错误处理
+
+### 状态管理
+
+```kotlin
+private val _error = MutableStateFlow<String?>(null)
+val error: StateFlow<String?> = _error.asStateFlow()
+
+fun doSomething() {
+    viewModelScope.launch {
+        _error.value = null
+        val result = service.doSomething()
+        result.onError { exception, message ->
+            _error.value = message ?: "操作失败"
+            Log.e("ViewModel", "Error: $message", exception)
+        }
+    }
+}
+```
+
+### UI 显示错误
+
+```kotlin
+val error by viewModel.error.collectAsState()
+
+error?.let { message ->
+    LaunchedEffect(message) {
+        showToast(message, ToastType.ERROR)
+        viewModel.clearError()
+    }
+}
+```
+
+## 日志记录
+
+### 使用 Logger
+
+```kotlin
+import com.xichen.cloudphoto.core.logger.Log
+
+Log.d("Tag", "Debug message")
+Log.i("Tag", "Info message")
+Log.e("Tag", "Error message", exception)
+```
+
+### 日志级别
+
+- `Log.d()`: 调试信息
+- `Log.i()`: 一般信息
+- `Log.w()`: 警告
+- `Log.e()`: 错误（必须包含异常）
+
+## 最佳实践
+
+1. **统一格式**：所有错误通过 `ApiResult` 或 `Result` 返回
+2. **用户友好**：使用 `ErrorHandler.getUserMessage()` 获取用户可理解的错误消息
+3. **详细日志**：错误日志必须包含异常堆栈
+4. **错误恢复**：提供重试机制或降级方案
+5. **不要吞掉错误**：所有错误都应该被记录和处理
+
+## 注意事项
+
+- ⚠️ **不要直接抛出异常**：使用 `Result.failure()` 或 `ApiResult.Error`
+- ⚠️ **不要忽略错误**：所有 `onError` 回调都应该处理
+- ⚠️ **敏感信息**：错误消息中不要包含敏感信息（密码、Token 等）

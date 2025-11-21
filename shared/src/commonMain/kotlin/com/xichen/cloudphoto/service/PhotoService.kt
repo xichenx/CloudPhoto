@@ -111,6 +111,29 @@ class PhotoService(
         }
     }
     
+    /**
+     * 上传照片（失败时抛异常），便于 Swift 等平台使用 try/catch，无需处理 Kotlin Result。
+     */
+    suspend fun uploadPhotoThrowing(
+        photoData: ByteArray,
+        fileName: String,
+        mimeType: String,
+        width: Int,
+        height: Int,
+        configId: String? = null,
+        albumId: String? = null
+    ): Photo {
+        return uploadPhoto(photoData, fileName, mimeType, width, height, configId, albumId)
+            .fold(onSuccess = { it }, onFailure = { throw it })
+    }
+
+    /**
+     * 删除照片（失败时抛异常），便于 Swift 等平台使用 try/catch。
+     */
+    suspend fun deletePhotoThrowing(photoId: String) {
+        deletePhoto(photoId).fold(onSuccess = {}, onFailure = { throw it })
+    }
+
     suspend fun getAllPhotos(): List<Photo> {
         return photoRepository.getAllPhotos()
     }

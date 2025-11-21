@@ -1,0 +1,391 @@
+---
+alwaysApply: true
+description: UI/UX 设计系统和组件规范
+---
+
+# UI/UX 设计系统规范
+
+## 设计原则
+
+### 一致性
+- 跨平台保持一致的视觉风格和交互模式
+- 使用统一的设计语言和组件库
+- 保持品牌识别度
+
+### 可用性
+- 界面简洁清晰，操作直观
+- 提供明确的反馈和状态提示
+- 支持无障碍访问
+
+### 响应式
+- 适配不同屏幕尺寸（手机、平板）
+- 支持横竖屏切换
+- 适配不同设备类型
+
+## 颜色系统
+
+### 主题颜色
+
+#### Android (Material 3)
+```kotlin
+// 主色调 - 青春活力配色方案
+val primary = Color(0xFF00B4D8)      // 天蓝色 - 青春活力的主色调
+val secondary = Color(0xFFFF6B6B)    // 珊瑚红 - 温暖活力的辅助色
+val tertiary = Color(0xFF4ECDC4)     // 薄荷绿 - 清新活力的第三色
+val error = Color(0xFFFF5252)         // 柔和红
+
+// 背景色
+val background = Color(0xFFFAFAFA)    // 柔和浅灰
+val surface = Color(0xFFFFFFFF)       // 纯白
+
+// Material 3 完整颜色系统
+// 包括 primaryContainer, secondaryContainer, tertiaryContainer 等
+```
+
+#### iOS (Apple HIG)
+```swift
+struct Colors {
+    // 主色调 - 青春活力配色方案（与 Android 保持一致）
+    static let primary = Color(red: 0.0, green: 0.706, blue: 0.847)      // 天蓝色
+    static let secondary = Color(red: 1.0, green: 0.420, blue: 0.420)   // 珊瑚红
+    static let tertiary = Color(red: 0.306, green: 0.804, blue: 0.769)  // 薄荷绿
+    static let error = Color(red: 1.0, green: 0.322, blue: 0.322)       // 柔和红
+    
+    // 系统颜色（自动适配浅色/深色模式）
+    static var background: Color { Color(UIColor.systemBackground) }
+    static var surface: Color { Color(UIColor.secondarySystemBackground) }
+    static var text: Color { Color(UIColor.label) }
+    static var secondaryText: Color { Color(UIColor.secondaryLabel) }
+}
+```
+
+### 语义颜色
+
+- **Primary**: 主要操作按钮、链接、强调元素
+- **Secondary**: 次要操作、辅助信息
+- **Error**: 错误提示、危险操作
+- **Success**: 成功提示（绿色）
+- **Warning**: 警告提示（橙色）
+- **Info**: 信息提示（蓝色）
+
+##  typography 字体系统
+
+### 字体大小
+
+#### Android (Material 3 Typography)
+| 用途 | 字体大小 | 权重 |
+|------|---------|------|
+| Display Large | 57sp | Regular |
+| Headline Large | 32sp | Regular |
+| Title Large | 22sp | Medium |
+| Body Large | 16sp | Regular |
+| Label Large | 14sp | Medium |
+
+#### iOS (San Francisco)
+| 用途 | 字体大小 | 权重 |
+|------|---------|------|
+| Large Title | 34pt | Regular |
+| Title | 28pt | Regular |
+| Title 2 | 22pt | Regular |
+| Title 3 | 20pt | Regular |
+| Headline | 17pt | Semibold |
+| Body | 17pt | Regular |
+| Subheadline | 15pt | Regular |
+| Footnote | 13pt | Regular |
+| Caption | 12pt | Regular |
+
+### 字体权重
+
+- **Bold**: 标题、强调文字
+- **Medium**: 副标题、重要信息
+- **Regular**: 正文、普通文字
+- **Light**: 辅助信息、说明文字
+
+## 间距系统
+
+### 间距单位
+
+使用 4dp/4pt 的倍数：
+
+- **4dp/4pt**: 最小间距（元素内部）
+- **8dp/8pt**: 小间距（相关元素）
+- **16dp/16pt**: 标准间距（组件之间）
+- **24dp/24pt**: 大间距（区块之间）
+- **32dp/32pt**: 超大间距（页面区域）
+
+### 应用示例
+
+```kotlin
+// Android Compose
+Column(
+    modifier = Modifier
+        .padding(16.dp)  // 标准间距
+        .spacing(8.dp)  // 小间距
+) {
+    // 内容
+}
+```
+
+```swift
+// iOS SwiftUI
+VStack(spacing: 8) {  // 小间距
+    // 内容
+}
+.padding(16)  // 标准间距
+```
+
+## 组件规范
+
+### 按钮 (Button)
+
+#### 主要按钮
+- 使用 Primary 颜色
+- 圆角：12dp/12pt
+- 高度：48dp/48pt（最小触摸目标）
+- 内边距：16dp/16pt 水平
+
+#### 次要按钮
+- 使用 Outlined 样式
+- 边框：1dp/1pt
+- 其他同主要按钮
+
+#### 文本按钮
+- 无背景
+- 使用 Primary 文字颜色
+- 最小高度：48dp/48pt
+
+### 卡片 (Card)
+
+```kotlin
+// Android
+Card(
+    modifier = Modifier
+        .fillMaxWidth()
+        .padding(16.dp),
+    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+    shape = RoundedCornerShape(12.dp)
+) {
+    // 内容
+}
+```
+
+```swift
+// iOS
+VStack {
+    // 内容
+}
+.padding(16)
+.background(Color.white)
+.cornerRadius(12)
+.shadow(radius: 4)
+```
+
+### 输入框 (TextField)
+
+- 圆角：8dp/8pt
+- 高度：56dp/56pt
+- 内边距：16dp/16pt
+- 边框：1dp/1pt（未聚焦），2dp/2pt（聚焦）
+- 标签：12dp/12pt 上方间距
+
+### 列表 (List)
+
+#### 列表项
+- 最小高度：56dp/56pt
+- 内边距：16dp/16pt
+- 分隔线：1dp/1pt，透明度 12%
+
+#### 网格列表
+- 间距：2dp/2pt（照片网格）
+- 圆角：4dp/4pt（图片）
+
+### 对话框 (Dialog)
+
+- 圆角：24dp/24pt（顶部）
+- 最大宽度：90% 屏幕宽度
+- 内边距：24dp/24pt
+- 按钮间距：8dp/8pt
+
+### Toast 提示
+
+- 位置：底部，距离底部 16dp/16pt
+- 圆角：8dp/8pt
+- 内边距：16dp/16pt 水平，12dp/12pt 垂直
+- 背景：黑色 70% 透明度
+- 文字：白色
+- 持续时间：2-3 秒
+
+## 图标系统
+
+### 图标大小
+
+- **小图标**: 16dp/16pt（列表项、标签）
+- **标准图标**: 24dp/24pt（按钮、工具栏）
+- **大图标**: 32dp/32pt（空状态）
+- **超大图标**: 48dp/48pt（占位符）
+
+### 图标使用
+
+- 使用系统图标库（Material Icons / SF Symbols）
+- 保持一致的图标风格
+- 图标颜色跟随主题
+
+## 空状态设计
+
+### 空状态组件
+
+```kotlin
+// Android
+Column(
+    modifier = Modifier.fillMaxSize(),
+    horizontalAlignment = Alignment.CenterHorizontally,
+    verticalArrangement = Arrangement.Center
+) {
+    Icon(
+        imageVector = Icons.Default.Photo,
+        contentDescription = null,
+        modifier = Modifier.size(64.dp),
+        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+    )
+    Spacer(modifier = Modifier.height(16.dp))
+    Text(
+        text = "暂无照片",
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+    )
+    Spacer(modifier = Modifier.height(8.dp))
+    Text(
+        text = "点击右下角按钮拍照",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+    )
+}
+```
+
+```swift
+// iOS
+VStack(spacing: 16) {
+    Image(systemName: "photo")
+        .font(.system(size: 64))
+        .foregroundColor(.secondary)
+    Text("暂无照片")
+        .font(.title3)
+        .foregroundColor(.secondary)
+    Text("点击右上角按钮拍照")
+        .font(.caption)
+        .foregroundColor(.secondary)
+}
+```
+
+## 加载状态
+
+### 加载指示器
+
+- 使用系统加载指示器（CircularProgressIndicator / ProgressView）
+- 颜色：Primary
+- 大小：标准 24dp/24pt，大 48dp/48pt
+
+### 骨架屏（可选）
+
+- 使用占位符显示内容结构
+- 动画：脉冲效果
+- 颜色：Surface 的 10% 透明度
+
+## 错误状态
+
+### 错误提示
+
+- 使用 Toast 显示短暂错误
+- 使用 Alert 显示重要错误
+- 错误图标：红色，24dp/24pt
+- 错误文字：清晰描述问题和解决方案
+
+## 响应式设计
+
+### 断点
+
+| 设备类型 | 最小宽度 | 布局 |
+|---------|---------|------|
+| 手机 | < 600dp | 单列 |
+| 平板 | 600-840dp | 双列 |
+| 大平板 | > 840dp | 三列 |
+
+### 布局适配
+
+```kotlin
+// Android
+val config = rememberResponsiveConfig()
+if (config.isTablet) {
+    Row {
+        // 侧边栏
+        // 主内容
+    }
+} else {
+    Column {
+        // 单列布局
+    }
+}
+```
+
+```swift
+// iOS
+let config = Environment(\.responsiveConfig).wrappedValue
+if config.isTablet {
+    HStack {
+        // 侧边栏
+        // 主内容
+    }
+} else {
+    VStack {
+        // 单列布局
+    }
+}
+```
+
+## 动画规范
+
+### 过渡动画
+
+- **页面切换**: 300ms，缓动曲线
+- **对话框**: 200ms，淡入淡出
+- **列表项**: 150ms，滑动
+- **按钮点击**: 100ms，缩放或涟漪
+
+### 动画曲线
+
+- **标准**: `EaseInOut`
+- **进入**: `EaseOut`
+- **退出**: `EaseIn`
+
+## 无障碍访问
+
+### 内容描述
+
+- 所有图标和图片必须有 `contentDescription` / `accessibilityLabel`
+- 按钮必须有清晰的文字或标签
+- 表单字段必须有标签和提示
+
+### 触摸目标
+
+- 最小触摸目标：48dp × 48dp / 44pt × 44pt
+- 按钮间距：至少 8dp/8pt
+
+### 对比度
+
+- 文字与背景对比度：至少 4.5:1
+- 大文字（18sp+）：至少 3:1
+
+## 最佳实践
+
+1. **一致性**: 使用设计系统组件，保持视觉一致
+2. **反馈**: 所有操作都要有明确的视觉反馈
+3. **性能**: 优化图片加载，使用占位符
+4. **可访问性**: 遵循无障碍设计指南
+5. **测试**: 在不同设备和屏幕尺寸上测试
+6. **用户研究**: 根据用户反馈持续改进
+
+## 设计资源
+
+- Material Design 3: https://m3.material.io
+- Human Interface Guidelines: https://developer.apple.com/design/human-interface-guidelines
+- 设计工具：Figma、Sketch、Adobe XD

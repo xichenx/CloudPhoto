@@ -1,0 +1,118 @@
+---
+globs: shared/**/di/**/*.kt,shared/**/service/**/*.kt
+description: 依赖注入规范
+---
+
+# 依赖注入规范
+
+## AppContainer
+
+使用 [AppContainer](mdc:shared/src/commonMain/kotlin/com/xichen/cloudphoto/core/di/AppContainer.kt) 统一管理所有依赖。
+
+### 获取容器
+
+```kotlin
+val container = AppContainerHolder.getContainer()
+```
+
+### 使用服务
+
+```kotlin
+val photoService = container.photoService
+val configService = container.configService
+val albumService = container.albumService
+```
+
+## 容器结构
+
+### Repositories
+
+```kotlin
+val configRepository: ConfigRepository
+val photoRepository: PhotoRepository
+val albumRepository: AlbumRepository
+```
+
+### Services
+
+```kotlin
+val configService: ConfigService
+val photoService: PhotoService
+val albumService: AlbumService
+```
+
+### Network
+
+```kotlin
+private val httpClient: HttpClient  // 内部使用，不直接暴露
+```
+
+## 初始化
+
+### Android ViewModel
+
+在 [AppViewModel](mdc:composeApp/src/androidMain/kotlin/com/xichen/cloudphoto/AppViewModel.kt) 中：
+
+```kotlin
+class AppViewModel(application: Application) : AndroidViewModel(application) {
+    private val container = AppContainerHolder.getContainer()
+    
+    init {
+        // 初始化 Repositories（需要 Context）
+        container.configRepository.init(application)
+        container.photoRepository.init(application)
+        container.albumRepository.init(application)
+    }
+    
+    private val photoService: PhotoService = container.photoService
+    private val configService: ConfigService = container.configService
+}
+```
+
+## 生命周期管理
+
+### 清理资源
+
+```kotlin
+override fun onCleared() {
+    super.onCleared()
+    // 容器会在应用退出时统一清理
+    // AppContainerHolder.dispose() 在应用退出时调用
+}
+```
+
+## 添加新服务
+
+### 1. 在 AppContainer 中添加
+
+```kotlin
+class AppContainer {
+    // 添加新的 Repository
+    val newRepository: NewRepository by lazy { NewRepository() }
+    
+    // 添加新的 Service
+    val newService: NewService by lazy {
+        NewService(newRepository, httpClient)
+    }
+}
+```
+
+### 2. 在 ViewModel 中使用
+
+```kotlin
+private val newService: NewService = container.newService
+```
+
+## 最佳实践
+
+1. **懒加载**：所有依赖使用 `by lazy` 延迟初始化
+2. **单一职责**：每个 Service 只负责一个业务领域
+3. **依赖顺序**：Service 依赖 Repository，Repository 依赖平台特定实现
+4. **资源管理**：HttpClient 在容器中统一管理，避免重复创建
+5. **测试友好**：可以通过替换 AppContainer 实现进行测试
+
+## 注意事项
+
+- ⚠️ **不要直接创建服务实例**：始终通过 AppContainer 获取
+- ⚠️ **不要创建多个容器实例**：使用 `AppContainerHolder.getContainer()`
+- ⚠️ **Repository 初始化**：Android 平台需要在 ViewModel 中调用 `init(context)`

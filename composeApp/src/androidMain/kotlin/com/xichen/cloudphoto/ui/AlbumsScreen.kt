@@ -16,7 +16,8 @@ fun AlbumsScreen(viewModel: AppViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("相册") }
+                title = { Text("相册") },
+                windowInsets = WindowInsets.statusBars
             )
         }
     ) { paddingValues ->

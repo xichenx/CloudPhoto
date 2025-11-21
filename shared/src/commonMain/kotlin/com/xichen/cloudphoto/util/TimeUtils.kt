@@ -1,6 +1,7 @@
 package com.xichen.cloudphoto.util
 
 import kotlinx.datetime.Clock
+import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
@@ -13,14 +14,14 @@ object TimeUtils {
         val now = Clock.System.now()
         val localDateTime = now.toLocalDateTime(TimeZone.UTC)
         
-        val dayOfWeek = when (localDateTime.dayOfWeek.value) {
-            1 -> "Mon"
-            2 -> "Tue"
-            3 -> "Wed"
-            4 -> "Thu"
-            5 -> "Fri"
-            6 -> "Sat"
-            7 -> "Sun"
+        val dayOfWeek = when (localDateTime.dayOfWeek) {
+            DayOfWeek.MONDAY -> "Mon"
+            DayOfWeek.TUESDAY -> "Tue"
+            DayOfWeek.WEDNESDAY -> "Wed"
+            DayOfWeek.THURSDAY -> "Thu"
+            DayOfWeek.FRIDAY -> "Fri"
+            DayOfWeek.SATURDAY -> "Sat"
+            DayOfWeek.SUNDAY -> "Sun"
             else -> "Mon"
         }
         
