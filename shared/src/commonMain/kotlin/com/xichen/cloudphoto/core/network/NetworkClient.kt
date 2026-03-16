@@ -1,5 +1,6 @@
 package com.xichen.cloudphoto.core.network
 
+import com.xichen.cloudphoto.core.logger.Log
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.plugins.*
@@ -58,11 +59,11 @@ object NetworkClientFactory {
             // 日志
             if (enableLogging) {
                 install(Logging) {
-                    level = LogLevel.INFO
+                    level = LogLevel.ALL  // 改为ALL级别，输出更详细的日志
                     logger = object : Logger {
                         override fun log(message: String) {
                             // 可以在这里添加自定义日志逻辑
-                            println("Network: $message")
+                            Log.d("NetWorkClient","Network: $message")
                         }
                     }
                 }

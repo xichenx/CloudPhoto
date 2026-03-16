@@ -5,7 +5,10 @@ package com.xichen.cloudphoto.core.config
  */
 object ApiConfig {
     /** 认证/业务 API 基础地址（登录、注册、验证码等） */
-    const val AUTH_BASE_URL: String = "http://192.168.0.112:8080"
+    // 方案1：使用 ADB 端口转发（推荐用于调试）
+    // 在命令行执行: adb reverse tcp:8080 tcp:8080
+    // 然后使用 127.0.0.1:8080
+    const val AUTH_BASE_URL: String = "http://127.0.0.1:8080"
 }
 
 /**
