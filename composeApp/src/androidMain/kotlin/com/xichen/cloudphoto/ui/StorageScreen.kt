@@ -105,6 +105,9 @@ fun StorageScreen(
                         isDefault = config.id == defaultConfig?.id,
                         onSetDefault = { viewModel.setDefaultConfig(config.id) },
                         onDelete = { viewModel.deleteConfig(config.id) },
+                        onEdit = {
+                            navController.navigate(Screen.EditStorageConfig.createRoute(config.id))
+                        },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -272,10 +275,12 @@ private fun ModernStorageConfigCard(
     isDefault: Boolean,
     onSetDefault: () -> Unit,
     onDelete: () -> Unit,
+    onEdit: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier
+            .clickable(onClick = onEdit)
             .shadow(
                 elevation = 2.dp,
                 shape = RoundedCornerShape(20.dp)
@@ -327,7 +332,7 @@ private fun ModernStorageConfigCard(
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = config.provider.name,
+                            text = getProviderDisplayName(config.provider),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
@@ -373,6 +378,12 @@ private fun ModernStorageConfigCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                OutlinedButton(
+                    onClick = onEdit,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("编辑")
+                }
                 if (!isDefault) {
                     OutlinedButton(
                         onClick = onSetDefault,
@@ -424,6 +435,22 @@ private fun getProviderIcon(provider: StorageProvider): ImageVector {
         StorageProvider.AWS_S3 -> Icons.Default.Cloud
         StorageProvider.TENCENT_COS -> Icons.Default.Cloud
         StorageProvider.MINIO -> Icons.Default.Folder
+        StorageProvider.QINIU -> Icons.Default.Cloud
         StorageProvider.CUSTOM_S3 -> Icons.Default.Cloud
+    }
+}
+
+/**
+ * 获取存储提供商的显示名称（中文）
+ */
+@Composable
+private fun getProviderDisplayName(provider: StorageProvider): String {
+    return when (provider) {
+        StorageProvider.ALIYUN_OSS -> "阿里云 OSS"
+        StorageProvider.AWS_S3 -> "AWS S3"
+        StorageProvider.TENCENT_COS -> "腾讯云 COS"
+        StorageProvider.MINIO -> "MinIO"
+        StorageProvider.QINIU -> "七牛云"
+        StorageProvider.CUSTOM_S3 -> "自定义 S3"
     }
 }

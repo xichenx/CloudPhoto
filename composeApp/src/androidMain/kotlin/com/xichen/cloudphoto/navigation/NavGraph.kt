@@ -9,8 +9,10 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.IntOffset
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import com.xichen.cloudphoto.ui.AccountSecurityScreen
 import com.xichen.cloudphoto.ui.AddStorageConfigScreen
 import com.xichen.cloudphoto.ui.ChangePasswordScreen
@@ -32,6 +34,9 @@ sealed class Screen(val route: String) {
     object Camera : Screen("camera")
     object Storage : Screen("storage")
     object AddStorageConfig : Screen("storage/add")
+    object EditStorageConfig : Screen("storage/edit/{configId}") {
+        fun createRoute(configId: String) = "storage/edit/$configId"
+    }
     object Settings : Screen("settings")
     object Profile : Screen("profile")
     object AccountSecurity : Screen("account_security")
@@ -140,7 +145,22 @@ fun NavGraph(
         composable(Screen.AddStorageConfig.route) {
             AddStorageConfigScreen(
                 navController = navController,
-                viewModel = viewModel
+                viewModel = viewModel,
+                configToEdit = null
+            )
+        }
+        composable(
+            route = Screen.EditStorageConfig.route,
+            arguments = listOf(
+                navArgument("configId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val configId = backStackEntry.arguments?.getString("configId") ?: ""
+            val configToEdit = viewModel.configs.value.firstOrNull { it.id == configId }
+            AddStorageConfigScreen(
+                navController = navController,
+                viewModel = viewModel,
+                configToEdit = configToEdit
             )
         }
         composable(Screen.Settings.route) {

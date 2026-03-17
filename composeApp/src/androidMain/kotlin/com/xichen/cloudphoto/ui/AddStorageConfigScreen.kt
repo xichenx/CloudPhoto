@@ -7,7 +7,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,22 +24,27 @@ import com.xichen.cloudphoto.model.StorageProvider
 import kotlinx.datetime.Clock
 
 /**
- * 添加存储配置 - 独立全屏界面（替代原 Dialog）
+ * 添加/编辑存储配置 - 独立全屏界面（替代原 Dialog）
+ * @param configToEdit 如果提供，则为编辑模式；否则为添加模式
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddStorageConfigScreen(
     navController: NavController,
-    viewModel: AppViewModel
+    viewModel: AppViewModel,
+    configToEdit: StorageConfig? = null
 ) {
-    var name by remember { mutableStateOf("") }
-    var provider by remember { mutableStateOf(StorageProvider.ALIYUN_OSS) }
-    var endpoint by remember { mutableStateOf("") }
-    var accessKeyId by remember { mutableStateOf("") }
-    var accessKeySecret by remember { mutableStateOf("") }
-    var bucketName by remember { mutableStateOf("") }
-    var region by remember { mutableStateOf("") }
-    var isDefault by remember { mutableStateOf(false) }
+    val isEditMode = configToEdit != null
+    
+    // 初始化状态：如果是编辑模式，使用已有配置的值
+    var name by remember { mutableStateOf(configToEdit?.name ?: "") }
+    var provider by remember { mutableStateOf(configToEdit?.provider ?: StorageProvider.ALIYUN_OSS) }
+    var endpoint by remember { mutableStateOf(configToEdit?.endpoint ?: "") }
+    var accessKeyId by remember { mutableStateOf(configToEdit?.accessKeyId ?: "") }
+    var accessKeySecret by remember { mutableStateOf(configToEdit?.accessKeySecret ?: "") }
+    var bucketName by remember { mutableStateOf(configToEdit?.bucketName ?: "") }
+    var region by remember { mutableStateOf(configToEdit?.region ?: "") }
+    var isDefault by remember { mutableStateOf(configToEdit?.isDefault ?: false) }
 
     fun saveIfValid() {
         if (name.isNotEmpty() && endpoint.isNotEmpty() &&
@@ -43,7 +52,7 @@ fun AddStorageConfigScreen(
             bucketName.isNotEmpty()
         ) {
             val config = StorageConfig(
-                id = "${Clock.System.now().epochSeconds}_${(0..999999).random()}",
+                id = configToEdit?.id ?: "${Clock.System.now().epochSeconds}_${(0..999999).random()}",
                 name = name,
                 provider = provider,
                 endpoint = endpoint,
@@ -52,7 +61,7 @@ fun AddStorageConfigScreen(
                 bucketName = bucketName,
                 region = region.ifEmpty { null },
                 isDefault = isDefault,
-                createdAt = Clock.System.now().epochSeconds
+                createdAt = configToEdit?.createdAt ?: Clock.System.now().epochSeconds
             )
             viewModel.saveConfig(config)
             navController.popBackStack()
@@ -64,7 +73,7 @@ fun AddStorageConfigScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "添加存储配置",
+                        if (configToEdit != null) "编辑存储配置" else "添加存储配置",
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold
                         )
@@ -104,6 +113,52 @@ fun AddStorageConfigScreen(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // 提供商选择（编辑模式下可修改）
+            if (!isEditMode) {
+                var expanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = provider.name,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("存储提供商") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        StorageProvider.values().forEach { p ->
+                            DropdownMenuItem(
+                                text = { Text(getProviderDisplayName(p)) },
+                                onClick = {
+                                    provider = p
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            } else {
+                // 编辑模式下显示提供商（不可修改）
+                OutlinedTextField(
+                    value = getProviderDisplayName(provider),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("存储提供商") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+            }
+            
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
@@ -128,13 +183,23 @@ fun AddStorageConfigScreen(
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp)
             )
+            var passwordVisible by remember { mutableStateOf(false) }
             OutlinedTextField(
                 value = accessKeySecret,
                 onValueChange = { accessKeySecret = it },
                 label = { Text("Access Key Secret") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Icon(
+                            imageVector = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                            contentDescription = if (passwordVisible) "隐藏密码" else "显示密码"
+                        )
+                    }
+                }
             )
             OutlinedTextField(
                 value = bucketName,
@@ -174,5 +239,20 @@ fun AddStorageConfigScreen(
                 Text("保存配置")
             }
         }
+    }
+}
+
+/**
+ * 获取存储提供商的显示名称（中文）
+ */
+@Composable
+private fun getProviderDisplayName(provider: StorageProvider): String {
+    return when (provider) {
+        StorageProvider.ALIYUN_OSS -> "阿里云 OSS"
+        StorageProvider.AWS_S3 -> "AWS S3"
+        StorageProvider.TENCENT_COS -> "腾讯云 COS"
+        StorageProvider.MINIO -> "MinIO"
+        StorageProvider.QINIU -> "七牛云"
+        StorageProvider.CUSTOM_S3 -> "自定义 S3"
     }
 }

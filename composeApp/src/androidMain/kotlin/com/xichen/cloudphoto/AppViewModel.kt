@@ -12,6 +12,7 @@ import com.xichen.cloudphoto.core.theme.ThemeRepository
 import com.xichen.cloudphoto.core.logger.Log
 import com.xichen.cloudphoto.service.AlbumService
 import com.xichen.cloudphoto.service.AuthService
+import com.xichen.cloudphoto.service.ConfigApiService
 import com.xichen.cloudphoto.service.ConfigService
 import com.xichen.cloudphoto.service.PhotoService
 import com.xichen.cloudphoto.core.auth.TokenManager
@@ -23,8 +24,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
-    // 使用依赖注入容器
-    private val container = AppContainerHolder.getContainer()
+    // 使用依赖注入容器（传递 Application Context）
+    private val container = AppContainerHolder.getContainer(application.applicationContext)
     
     // 初始化 Repositories
     private val themeRepository: ThemeRepository = container.themeRepository
@@ -37,13 +38,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
     
     // 从容器获取服务（含认证服务，接口 baseUrl 在 shared ApiConfig 中统一配置）
-    private val configService: ConfigService = container.configService
+    private val configService: ConfigService = container.configService  // 本地服务（作为缓存）
+    private val configApiService: ConfigApiService = container.configApiService  // 后端API服务
     private val photoService: PhotoService = container.photoService
     private val albumService: AlbumService = container.albumService
     private val authService: AuthService = container.authService
     
-    // Token管理器 - 使用 Context 构造函数
-    private val tokenManager: TokenManager = TokenManager(application.applicationContext)
+    // Token管理器 - 使用容器中的 TokenManager（统一管理）
+    private val tokenManager: TokenManager = container.tokenManager
     
     private val _photos = MutableStateFlow<List<Photo>>(emptyList())
     val photos: StateFlow<List<Photo>> = _photos.asStateFlow()
@@ -295,26 +297,51 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     
     fun loadConfigs() {
         viewModelScope.launch {
-            _configs.value = configService.getAllConfigs()
-            _defaultConfig.value = configService.getDefaultConfig()
+            // 如果已登录，从后端加载配置
+            if (_isLoggedIn.value) {
+                val result = configApiService.getConfigs()
+                result.onSuccess { configDTOs ->
+                    // 转换为本地模型
+                    val configs = configDTOs.map { it.toStorageConfig() }
+                    _configs.value = configs
+                    
+                    // 查找默认配置
+                    _defaultConfig.value = configs.firstOrNull { it.isDefault }
+                    
+                    // 同时保存到本地缓存
+                    configs.forEach { config ->
+                        configService.saveConfig(config)
+                    }
+                }.onError { exception, message ->
+                    Log.e("AppViewModel", "Failed to load configs from API: $message", exception)
+                    // 如果API失败，从本地加载
+                    _configs.value = configService.getAllConfigs()
+                    _defaultConfig.value = configService.getDefaultConfig()
+                }
+            } else {
+                // 未登录时从本地加载
+                _configs.value = configService.getAllConfigs()
+                _defaultConfig.value = configService.getDefaultConfig()
+            }
         }
     }
     
     fun uploadPhoto(photoData: ByteArray, fileName: String, mimeType: String, width: Int, height: Int) {
         viewModelScope.launch {
-            val result = photoService.uploadPhoto(
+            // 使用后端 API 上传（后端中转）
+            val result = container.photoApiService.uploadPhoto(
                 photoData = photoData,
                 fileName = fileName,
-                mimeType = mimeType,
-                width = width,
-                height = height
+                contentType = mimeType,
+                albumId = null,
+                takenAt = null
             )
-            result.onSuccess {
-                Log.i("AppViewModel", "Photo uploaded successfully: ${it.id}")
+            result.onSuccess { photoDTO ->
+                Log.i("AppViewModel", "Photo uploaded successfully: ${photoDTO.id}")
                 loadPhotos()
-            }.onFailure { error ->
-                val appError = ErrorHandler.handleError(error)
-                Log.e("AppViewModel", "Failed to upload photo: ${appError.message}", error)
+            }.onError { exception, message ->
+                val appError = ErrorHandler.handleError(exception)
+                Log.e("AppViewModel", "Failed to upload photo: ${appError.message}", exception)
             }
         }
     }
@@ -333,22 +360,85 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     
     fun saveConfig(config: StorageConfig) {
         viewModelScope.launch {
-            configService.saveConfig(config)
-            loadConfigs()
+            // 如果已登录，保存到后端
+            if (_isLoggedIn.value) {
+                val configDTO = config.toCloudConfigDTO()
+                val result = configApiService.saveConfig(configDTO)
+                result.onSuccess { savedConfigDTO ->
+                    // 保存成功，转换为本地模型并更新UI
+                    val savedConfig = savedConfigDTO.toStorageConfig()
+                    
+                    // 如果设为默认，激活配置
+                    if (config.isDefault) {
+                        savedConfigDTO.id?.let { configId ->
+                            configApiService.activateConfig(configId)
+                        }
+                    }
+                    
+                    // 同时保存到本地缓存
+                    configService.saveConfig(savedConfig)
+                    
+                    // 重新加载配置列表
+                    loadConfigs()
+                    
+                    Log.i("AppViewModel", "Config saved to backend: ${savedConfig.id}")
+                }.onError { exception, message ->
+                    Log.e("AppViewModel", "Failed to save config to backend: $message", exception)
+                    _authError.value = message ?: "保存配置失败，请检查网络连接"
+                    
+                    // 如果后端保存失败，仍然保存到本地（离线支持）
+                    configService.saveConfig(config)
+                    loadConfigs()
+                }
+            } else {
+                // 未登录时只保存到本地
+                configService.saveConfig(config)
+                loadConfigs()
+            }
         }
     }
     
     fun deleteConfig(configId: String) {
         viewModelScope.launch {
-            configService.deleteConfig(configId)
-            loadConfigs()
+            // 如果已登录，从后端删除
+            if (_isLoggedIn.value) {
+                val result = configApiService.deleteConfig(configId)
+                result.onSuccess {
+                    // 后端删除成功，同时删除本地缓存
+                    configService.deleteConfig(configId)
+                    loadConfigs()
+                    Log.i("AppViewModel", "Config deleted from backend: $configId")
+                }.onError { exception, message ->
+                    Log.e("AppViewModel", "Failed to delete config from backend: $message", exception)
+                    _authError.value = message ?: "删除配置失败"
+                }
+            } else {
+                // 未登录时只删除本地
+                configService.deleteConfig(configId)
+                loadConfigs()
+            }
         }
     }
     
     fun setDefaultConfig(configId: String) {
         viewModelScope.launch {
-            configService.setDefaultConfig(configId)
-            loadConfigs()
+            // 如果已登录，在后端激活配置
+            if (_isLoggedIn.value) {
+                val result = configApiService.activateConfig(configId)
+                result.onSuccess {
+                    // 后端激活成功，同时更新本地
+                    configService.setDefaultConfig(configId)
+                    loadConfigs()
+                    Log.i("AppViewModel", "Config activated on backend: $configId")
+                }.onError { exception, message ->
+                    Log.e("AppViewModel", "Failed to activate config on backend: $message", exception)
+                    _authError.value = message ?: "设置默认配置失败"
+                }
+            } else {
+                // 未登录时只更新本地
+                configService.setDefaultConfig(configId)
+                loadConfigs()
+            }
         }
     }
     

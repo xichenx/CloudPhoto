@@ -22,6 +22,7 @@ enum class StorageProvider {
     AWS_S3,
     TENCENT_COS,
     MINIO,
+    QINIU,
     CUSTOM_S3
 }
 

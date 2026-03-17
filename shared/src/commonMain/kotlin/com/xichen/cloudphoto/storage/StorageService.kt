@@ -5,6 +5,7 @@ import com.xichen.cloudphoto.storage.impl.AliyunOssService
 import com.xichen.cloudphoto.storage.impl.AwsS3Service
 import com.xichen.cloudphoto.storage.impl.CustomS3Service
 import com.xichen.cloudphoto.storage.impl.MinioService
+import com.xichen.cloudphoto.storage.impl.QiniuService
 import com.xichen.cloudphoto.storage.impl.TencentCosService
 import io.ktor.client.HttpClient
 
@@ -44,6 +45,8 @@ object StorageServiceFactory {
                 TencentCosService(httpClient)
             com.xichen.cloudphoto.model.StorageProvider.MINIO ->
                 MinioService(httpClient)
+            com.xichen.cloudphoto.model.StorageProvider.QINIU ->
+                QiniuService(httpClient)
             com.xichen.cloudphoto.model.StorageProvider.CUSTOM_S3 ->
                 CustomS3Service(httpClient)
         }

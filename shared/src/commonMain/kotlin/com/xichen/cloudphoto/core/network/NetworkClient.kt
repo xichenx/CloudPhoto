@@ -1,5 +1,6 @@
 package com.xichen.cloudphoto.core.network
 
+import com.xichen.cloudphoto.core.auth.TokenManager
 import com.xichen.cloudphoto.core.logger.Log
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -30,7 +31,8 @@ object NetworkClientFactory {
     fun create(
         baseUrl: String? = null,
         timeout: Long = NetworkConfig.DEFAULT_TIMEOUT,
-        enableLogging: Boolean = true
+        enableLogging: Boolean = true,
+        tokenManager: com.xichen.cloudphoto.core.auth.TokenManager? = null
     ): HttpClient {
         return HttpClient {
             // 基础配置
@@ -74,6 +76,14 @@ object NetworkClientFactory {
                 headers {
                     append(HttpHeaders.ContentType, ContentType.Application.Json)
                     append(HttpHeaders.Accept, ContentType.Application.Json)
+                    
+                    // Token 拦截器（自动添加 Authorization header）
+                    tokenManager?.let { manager ->
+                        val token = manager.getAccessToken()
+                        if (token != null && !contains(HttpHeaders.Authorization)) {
+                            append(HttpHeaders.Authorization, "Bearer $token")
+                        }
+                    }
                 }
             }
             
