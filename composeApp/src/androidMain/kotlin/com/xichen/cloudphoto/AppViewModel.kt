@@ -7,6 +7,8 @@ import com.xichen.cloudphoto.model.Photo
 import com.xichen.cloudphoto.model.StorageConfig
 import com.xichen.cloudphoto.core.di.AppContainerHolder
 import com.xichen.cloudphoto.core.error.ErrorHandler
+import com.xichen.cloudphoto.core.theme.ThemeMode
+import com.xichen.cloudphoto.core.theme.ThemeRepository
 import com.xichen.cloudphoto.core.logger.Log
 import com.xichen.cloudphoto.service.AlbumService
 import com.xichen.cloudphoto.service.AuthService
@@ -25,10 +27,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val container = AppContainerHolder.getContainer()
     
     // 初始化 Repositories
+    private val themeRepository: ThemeRepository = container.themeRepository
+
     init {
         container.configRepository.init(application)
         container.photoRepository.init(application)
         container.albumRepository.init(application)
+        themeRepository.init(application)
     }
     
     // 从容器获取服务（含认证服务，接口 baseUrl 在 shared ApiConfig 中统一配置）
@@ -60,8 +65,30 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     // 错误消息
     private val _authError = MutableStateFlow<String?>(null)
     val authError: StateFlow<String?> = _authError.asStateFlow()
-    
+
+    // 修改密码成功（单次消费，UI 消费后调用 clearChangePasswordSuccess）
+    private val _changePasswordSuccess = MutableStateFlow(false)
+    val changePasswordSuccess: StateFlow<Boolean> = _changePasswordSuccess.asStateFlow()
+
+    /** 主题模式：跟随系统 / 浅色 / 深色 */
+    private val _themeMode = MutableStateFlow(ThemeMode.SYSTEM)
+    val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
+
+    fun clearChangePasswordSuccess() {
+        _changePasswordSuccess.value = false
+    }
+
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch {
+            themeRepository.setThemeMode(mode)
+            _themeMode.value = mode
+        }
+    }
+
     init {
+        viewModelScope.launch {
+            _themeMode.value = themeRepository.getThemeMode()
+        }
         // 检查登录状态
         checkLoginStatus()
         if (_isLoggedIn.value) {
@@ -154,6 +181,51 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun clearAuthError() {
         _authError.value = null
+    }
+
+    /**
+     * 更新个人资料（用户名、头像等）
+     */
+    fun updateProfile(username: String?, avatar: String? = null) {
+        viewModelScope.launch {
+            _authError.value = null
+            val token = tokenManager.getAccessToken() ?: run {
+                _authError.value = "请先登录"
+                return@launch
+            }
+            val request = UpdateProfileRequest(username = username, avatar = avatar)
+            val result = authService.updateProfile(token, request)
+            result.onSuccess { user ->
+                _currentUser.value = user
+                _authError.value = null
+            }.onError { exception, message ->
+                _authError.value = message ?: exception.message ?: "更新失败"
+                Log.e("AppViewModel", "Update profile failed: ${message}", exception)
+            }
+        }
+    }
+
+    /**
+     * 修改密码（需先通过邮箱验证码验证）
+     */
+    fun changePassword(email: String, emailCode: String, oldPassword: String, newPassword: String) {
+        viewModelScope.launch {
+            _authError.value = null
+            val request = ChangePasswordRequest(
+                email = email,
+                emailCode = emailCode,
+                oldPassword = oldPassword,
+                newPassword = newPassword
+            )
+            val result = authService.changePassword(request)
+            result.onSuccess {
+                _authError.value = null
+                _changePasswordSuccess.value = true
+            }.onError { exception, message ->
+                _authError.value = message ?: exception.message ?: "修改密码失败"
+                Log.e("AppViewModel", "Change password failed: ${message}", exception)
+            }
+        }
     }
     
     /**

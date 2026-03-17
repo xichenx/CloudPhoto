@@ -3,6 +3,7 @@ package com.xichen.cloudphoto.service
 import com.xichen.cloudphoto.core.network.ApiResult
 import com.xichen.cloudphoto.core.network.NetworkClientFactory
 import com.xichen.cloudphoto.core.network.post
+import com.xichen.cloudphoto.core.network.put
 import com.xichen.cloudphoto.model.*
 import io.ktor.client.HttpClient
 import io.ktor.client.request.headers
@@ -209,6 +210,88 @@ class AuthService(
             is ApiResult.Success -> Pair(true, null)
             is ApiResult.Error -> Pair(false, result.message ?: result.exception.message ?: "发送验证码失败")
             is ApiResult.Loading -> Pair(false, "请求中")
+        }
+    }
+
+    /**
+     * 修改密码（需先发送验证码，type 建议为 "reset"）
+     */
+    suspend fun changePassword(request: ChangePasswordRequest): ApiResult<Unit> {
+        return try {
+            val response = httpClient.post<ApiResponse<Unit>>("/api/auth/change-password") {
+                setBody(request)
+            }
+            when (response) {
+                is ApiResult.Success -> {
+                    if (response.data.code == 200) {
+                        ApiResult.Success(Unit)
+                    } else {
+                        ApiResult.Error(
+                            Exception(response.data.message),
+                            response.data.message
+                        )
+                    }
+                }
+                is ApiResult.Error -> response
+                is ApiResult.Loading -> ApiResult.Error(Exception("Unexpected loading state"))
+            }
+        } catch (e: Exception) {
+            ApiResult.Error(e, e.message)
+        }
+    }
+
+    /**
+     * 修改密码并返回是否成功及错误信息（便于 iOS 等平台处理）
+     */
+    suspend fun changePasswordOutcome(request: ChangePasswordRequest): Pair<Boolean, String?> {
+        val result = changePassword(request)
+        return when (result) {
+            is ApiResult.Success -> Pair(true, null)
+            is ApiResult.Error -> Pair(false, result.message ?: result.exception.message ?: "修改密码失败")
+            is ApiResult.Loading -> Pair(false, "请求中")
+        }
+    }
+
+    /**
+     * 更新个人资料（需携带 Token）
+     * 后端接口：PUT /api/user/profile
+     */
+    suspend fun updateProfile(accessToken: String, request: UpdateProfileRequest): ApiResult<UserDTO> {
+        return try {
+            val response = httpClient.put<ApiResponse<UserDTO>>("/api/user/profile") {
+                headers {
+                    append(HttpHeaders.Authorization, "Bearer $accessToken")
+                }
+                setBody(request)
+            }
+            when (response) {
+                is ApiResult.Success -> {
+                    if (response.data.code == 200 && response.data.data != null) {
+                        ApiResult.Success(response.data.data)
+                    } else {
+                        ApiResult.Error(
+                            Exception(response.data.message),
+                            response.data.message
+                        )
+                    }
+                }
+                is ApiResult.Error -> response
+                is ApiResult.Loading -> ApiResult.Error(Exception("Unexpected loading state"))
+            }
+        } catch (e: Exception) {
+            ApiResult.Error(e, e.message)
+        }
+    }
+
+    /**
+     * 更新个人资料并返回结果（便于 iOS 等平台处理）
+     */
+    suspend fun updateProfileOutcome(accessToken: String, request: UpdateProfileRequest): Pair<UserDTO?, String?> {
+        val result = updateProfile(accessToken, request)
+        return when (result) {
+            is ApiResult.Success -> Pair(result.data, null)
+            is ApiResult.Error -> Pair(null, result.message ?: result.exception.message ?: "更新失败")
+            is ApiResult.Loading -> Pair(null, "请求中")
         }
     }
 }

@@ -14,6 +14,8 @@ class AppViewModel: ObservableObject {
     @Published var currentUser: UserDTO? = nil
     /// 认证相关错误信息（登录/注册/发送验证码失败时设置，UI 展示后建议清空）
     @Published var authError: String? = nil
+    /// 修改密码成功（单次，UI 消费后调用 clearChangePasswordSuccess）
+    @Published var changePasswordSuccess: Bool = false
     
     private let photoService: PhotoService
     private let configService: ConfigService
@@ -236,6 +238,61 @@ class AppViewModel: ObservableObject {
     /// 清除认证错误（UI 展示 Toast 后调用）
     func clearAuthError() {
         authError = nil
+    }
+
+    /// 修改密码成功标志清零（UI 消费后调用）
+    func clearChangePasswordSuccess() {
+        changePasswordSuccess = false
+    }
+
+    /// 修改密码（需先通过邮箱验证码验证）
+    func changePassword(email: String, emailCode: String, oldPassword: String, newPassword: String) {
+        authError = nil
+        Task {
+            do {
+                let request = ChangePasswordRequest(
+                    email: email,
+                    emailCode: emailCode,
+                    oldPassword: oldPassword,
+                    newPassword: newPassword
+                )
+                let outcome = try await authService.changePasswordOutcome(request: request)
+                await MainActor.run {
+                    let success = outcome.first?.boolValue ?? false
+                    if success {
+                        changePasswordSuccess = true
+                    } else if let message = outcome.second {
+                        authError = String(message)
+                    }
+                }
+            } catch {
+                await MainActor.run { authError = error.localizedDescription }
+            }
+        }
+    }
+
+    /// 更新个人资料（用户名、头像等）
+    func updateProfile(username: String?, avatar: String? = nil) {
+        authError = nil
+        guard let token = tokenManager.getAccessToken() else {
+            authError = "请先登录"
+            return
+        }
+        Task {
+            do {
+                let request = UpdateProfileRequest(username: username, avatar: avatar)
+                let outcome = try await authService.updateProfileOutcome(accessToken: token, request: request)
+                await MainActor.run {
+                    if let user = outcome.first {
+                        currentUser = user
+                    } else if let message = outcome.second {
+                        authError = String(message)
+                    }
+                }
+            } catch {
+                await MainActor.run { authError = error.localizedDescription }
+            }
+        }
     }
 }
 

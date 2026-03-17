@@ -1,10 +1,19 @@
 package com.xichen.cloudphoto.theme
 
+import android.app.Activity
+import android.graphics.drawable.ColorDrawable
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.*
+import androidx.compose.material3.LocalRippleConfiguration
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalView
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.xichen.cloudphoto.core.theme.DefaultTheme
 import com.xichen.cloudphoto.core.theme.ThemeMode
@@ -91,8 +100,9 @@ fun CloudPhotoTheme(
         )
     }
     
-    // 设置状态栏和导航栏为透明，实现沉浸式边到边布局
+    // 设置状态栏和导航栏为透明，实现沉浸式边到边布局；同步设置窗口背景，避免深色模式下跳转时白闪
     val systemUiController = rememberSystemUiController()
+    val view = LocalView.current
     SideEffect {
         systemUiController.setSystemBarsColor(
             color = Color.Transparent,
@@ -102,12 +112,18 @@ fun CloudPhotoTheme(
             color = Color.Transparent,
             darkIcons = !isDarkTheme
         )
+        (view.context as? Activity)?.window?.setBackgroundDrawable(
+            ColorDrawable(colorScheme.background.toArgb())
+        )
     }
-    
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography(),
-        content = content
-    )
+
+    // 全局禁用点击涟漪效果
+    CompositionLocalProvider(LocalRippleConfiguration provides null) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography(),
+            content = content
+        )
+    }
 }
 

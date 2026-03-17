@@ -3,9 +3,11 @@ import Shared
 
 /**
  * 设置视图 - 遵循 Apple HIG 设计规范
+ * 使用 NavigationStack + path：仅在根界面显示 Tab 栏，二级界面（个人资料、账号安全、修改密码）隐藏 Tab 栏，与存储页添加配置实现一致。
  */
 struct SettingsView: View {
     @ObservedObject var viewModel: AppViewModel
+    @State private var path: [SettingsRoute] = []
 
     private var userAvatarLetter: String {
         guard let name = viewModel.currentUser?.username, !name.isEmpty else { return "?" }
@@ -13,7 +15,7 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack(path: $path) {
             List {
                 Section {
                     HStack(spacing: AppTheme.Design.spacingM) {
@@ -54,16 +56,16 @@ struct SettingsView: View {
                 }
 
                 Section("账户") {
-                    NavigationLink(destination: EmptyView()) {
+                    NavigationLink(value: SettingsRoute.profile) {
                         Label("个人资料", systemImage: "person")
                     }
-                    NavigationLink(destination: EmptyView()) {
+                    NavigationLink(value: SettingsRoute.accountSecurity) {
                         Label("账户安全", systemImage: "lock.shield")
                     }
                 }
 
                 Section("应用") {
-                    NavigationLink(destination: EmptyView()) {
+                    NavigationLink(value: SettingsRoute.themeSettings) {
                         Label("主题设置", systemImage: "paintpalette")
                     }
                     NavigationLink(destination: EmptyView()) {
@@ -82,7 +84,19 @@ struct SettingsView: View {
             }
             .navigationTitle("我的")
             .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+            .navigationDestination(for: SettingsRoute.self) { route in
+                switch route {
+                case .profile:
+                    ProfileView(viewModel: viewModel)
+                case .accountSecurity:
+                    AccountSecurityView(viewModel: viewModel)
+                case .changePassword:
+                    ChangePasswordView(viewModel: viewModel)
+                case .themeSettings:
+                    ThemeSettingsView()
+                }
+            }
         }
-        .toolbar(.visible, for: .tabBar)
+        .toolbar(path.isEmpty ? .visible : .hidden, for: .tabBar)
     }
 }

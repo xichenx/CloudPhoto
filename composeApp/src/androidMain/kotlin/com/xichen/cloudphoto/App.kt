@@ -24,8 +24,9 @@ fun App() {
     // 在外部创建 NavController，避免在 AnimatedContent 内部重新创建
     val authNavController = rememberNavController()
     
+    val themeMode by viewModel.themeMode.collectAsState()
     ResponsiveContainer {
-        CloudPhotoTheme {
+        CloudPhotoTheme(themeMode = themeMode) {
             // 根据登录状态显示不同的界面，添加平滑过渡动画
             AnimatedContent(
                 targetState = isLoggedIn,

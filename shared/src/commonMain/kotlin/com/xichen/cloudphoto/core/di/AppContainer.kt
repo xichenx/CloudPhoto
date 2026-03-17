@@ -2,6 +2,7 @@ package com.xichen.cloudphoto.core.di
 
 import com.xichen.cloudphoto.core.config.ApiConfig
 import com.xichen.cloudphoto.core.network.NetworkClientFactory
+import com.xichen.cloudphoto.core.theme.ThemeRepository
 import com.xichen.cloudphoto.repository.AlbumRepository
 import com.xichen.cloudphoto.repository.ConfigRepository
 import com.xichen.cloudphoto.repository.PhotoRepository
@@ -20,6 +21,7 @@ class AppContainer {
     val configRepository: ConfigRepository by lazy { ConfigRepository() }
     val photoRepository: PhotoRepository by lazy { PhotoRepository() }
     val albumRepository: AlbumRepository by lazy { AlbumRepository() }
+    val themeRepository: ThemeRepository by lazy { ThemeRepository() }
     
     // Network
     private val httpClient: HttpClient by lazy {

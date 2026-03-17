@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -23,14 +24,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
 import com.xichen.cloudphoto.AppViewModel
 import com.xichen.cloudphoto.model.StorageConfig
+import com.xichen.cloudphoto.navigation.Screen
 import com.xichen.cloudphoto.model.StorageProvider
 import kotlinx.datetime.Clock
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(viewModel: AppViewModel) {
+fun SettingsScreen(
+    viewModel: AppViewModel,
+    navController: NavHostController
+) {
     val currentUser by viewModel.currentUser.collectAsState()
     
     var showLogoutDialog by remember { mutableStateOf(false) }
@@ -80,7 +86,7 @@ fun SettingsScreen(viewModel: AppViewModel) {
                 ModernSettingsCell(
                     title = "个人资料",
                     icon = Icons.Default.Person,
-                    onClick = { /* TODO: 打开个人资料页面 */ },
+                    onClick = { navController.navigate(Screen.Profile.route) },
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
                 )
             }
@@ -89,7 +95,7 @@ fun SettingsScreen(viewModel: AppViewModel) {
                 ModernSettingsCell(
                     title = "账户安全",
                     icon = Icons.Default.Security,
-                    onClick = { /* TODO: 打开账户安全页面 */ },
+                    onClick = { navController.navigate(Screen.AccountSecurity.route) },
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
                 )
             }
@@ -106,7 +112,7 @@ fun SettingsScreen(viewModel: AppViewModel) {
                 ModernSettingsCell(
                     title = "主题设置",
                     icon = Icons.Default.Palette,
-                    onClick = { /* TODO: 打开主题设置 */ },
+                    onClick = { navController.navigate(Screen.ThemeSettings.route) },
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
                 )
             }
@@ -395,7 +401,7 @@ fun SettingsSection(
 }
 
 /**
- * 现代化的设置项Cell
+ * 现代化的设置项Cell（无阴影）
  */
 @Composable
 fun ModernSettingsCell(
@@ -410,11 +416,10 @@ fun ModernSettingsCell(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .shadow(
-                elevation = 4.dp,
-                shape = RoundedCornerShape(16.dp),
-                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() },
+                onClick = onClick
             ),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(

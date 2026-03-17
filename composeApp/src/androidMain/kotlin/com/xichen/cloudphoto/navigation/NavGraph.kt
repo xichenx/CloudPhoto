@@ -1,6 +1,6 @@
 package com.xichen.cloudphoto.navigation
 
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -11,11 +11,15 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.xichen.cloudphoto.ui.AccountSecurityScreen
 import com.xichen.cloudphoto.ui.AddStorageConfigScreen
+import com.xichen.cloudphoto.ui.ChangePasswordScreen
 import com.xichen.cloudphoto.ui.AlbumsScreen
 import com.xichen.cloudphoto.ui.CameraScreen
 import com.xichen.cloudphoto.ui.PhotosScreen
+import com.xichen.cloudphoto.ui.ProfileScreen
 import com.xichen.cloudphoto.ui.SettingsScreen
+import com.xichen.cloudphoto.ui.ThemeSettingsScreen
 import com.xichen.cloudphoto.ui.StorageScreen
 import com.xichen.cloudphoto.AppViewModel
 
@@ -29,6 +33,10 @@ sealed class Screen(val route: String) {
     object Storage : Screen("storage")
     object AddStorageConfig : Screen("storage/add")
     object Settings : Screen("settings")
+    object Profile : Screen("profile")
+    object AccountSecurity : Screen("account_security")
+    object ChangePassword : Screen("change_password")
+    object ThemeSettings : Screen("theme_settings")
 
     /**
      * 属于底部导航栏的主 Tab 路由。仅在这些界面显示底部栏；
@@ -46,16 +54,21 @@ sealed class Screen(val route: String) {
     }
 }
 
-private const val NAV_ANIM_DURATION = 300
+// 转场时长略延长，视觉更顺滑
+private const val NAV_ANIM_DURATION = 320
+// Material 标准曲线：先快后慢，收尾更自然
+private val NAV_EASING = CubicBezierEasing(0.4f, 0f, 0.2f, 1f)
+// 滑动距离为 70% 宽度，减少位移感、提升流畅度
+private const val SLIDE_FRACTION = 0.7f
 
 private fun navTween() = tween<Float>(
     durationMillis = NAV_ANIM_DURATION,
-    easing = FastOutSlowInEasing
+    easing = NAV_EASING
 )
 
 private fun navSlideTween() = tween<IntOffset>(
     durationMillis = NAV_ANIM_DURATION,
-    easing = FastOutSlowInEasing
+    easing = NAV_EASING
 )
 
 /**
@@ -74,20 +87,28 @@ fun NavGraph(
         navController = navController,
         startDestination = startDestination,
         enterTransition = {
-            slideInHorizontally(initialOffsetX = { it }, animationSpec = navSlideTween()) +
-                fadeIn(animationSpec = navTween())
+            slideInHorizontally(
+                initialOffsetX = { (it * SLIDE_FRACTION).toInt() },
+                animationSpec = navSlideTween()
+            ) + fadeIn(animationSpec = navTween())
         },
         exitTransition = {
-            slideOutHorizontally(targetOffsetX = { -it }, animationSpec = navSlideTween()) +
-                fadeOut(animationSpec = navTween())
+            slideOutHorizontally(
+                targetOffsetX = { (-it * SLIDE_FRACTION).toInt() },
+                animationSpec = navSlideTween()
+            ) + fadeOut(animationSpec = navTween())
         },
         popEnterTransition = {
-            slideInHorizontally(initialOffsetX = { -it }, animationSpec = navSlideTween()) +
-                fadeIn(animationSpec = navTween())
+            slideInHorizontally(
+                initialOffsetX = { (-it * SLIDE_FRACTION).toInt() },
+                animationSpec = navSlideTween()
+            ) + fadeIn(animationSpec = navTween())
         },
         popExitTransition = {
-            slideOutHorizontally(targetOffsetX = { it }, animationSpec = navSlideTween()) +
-                fadeOut(animationSpec = navTween())
+            slideOutHorizontally(
+                targetOffsetX = { (it * SLIDE_FRACTION).toInt() },
+                animationSpec = navSlideTween()
+            ) + fadeOut(animationSpec = navTween())
         }
     ) {
         composable(Screen.Photos.route) {
@@ -123,7 +144,35 @@ fun NavGraph(
             )
         }
         composable(Screen.Settings.route) {
-            SettingsScreen(viewModel = viewModel)
+            SettingsScreen(
+                viewModel = viewModel,
+                navController = navController
+            )
+        }
+        composable(Screen.Profile.route) {
+            ProfileScreen(
+                viewModel = viewModel,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.AccountSecurity.route) {
+            AccountSecurityScreen(
+                viewModel = viewModel,
+                navController = navController,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.ChangePassword.route) {
+            ChangePasswordScreen(
+                viewModel = viewModel,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.ThemeSettings.route) {
+            ThemeSettingsScreen(
+                viewModel = viewModel,
+                onBack = { navController.popBackStack() }
+            )
         }
     }
 }

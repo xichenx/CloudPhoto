@@ -41,6 +41,26 @@ data class RefreshTokenRequest(
 )
 
 /**
+ * 修改密码请求（需先通过邮箱验证码验证）
+ */
+@Serializable
+data class ChangePasswordRequest(
+    val email: String,
+    val emailCode: String,
+    val oldPassword: String,
+    val newPassword: String
+)
+
+/**
+ * 更新个人资料请求（仅可修改的字段）
+ */
+@Serializable
+data class UpdateProfileRequest(
+    val username: String? = null,
+    val avatar: String? = null
+)
+
+/**
  * 用户信息DTO
  */
 @Serializable

@@ -11,9 +11,9 @@ import kotlinx.serialization.json.Json
 actual class ThemeRepository {
     private var context: Context? = null
     private val json = Json { ignoreUnknownKeys = true }
-    
-    fun init(context: Context) {
-        this.context = context.applicationContext
+
+    actual fun init(context: Any?) {
+        this.context = (context as? Context)?.applicationContext
     }
     
     private val prefs: SharedPreferences?

@@ -6,7 +6,9 @@ import platform.Foundation.NSUserDefaults
 
 actual class ThemeRepository {
     private val userDefaults = NSUserDefaults.standardUserDefaults
-    
+
+    actual fun init(context: Any?) {}
+
     actual suspend fun getThemeMode(): ThemeMode = withContext(Dispatchers.Default) {
         val modeString = userDefaults.stringForKey("theme_mode") ?: ThemeMode.SYSTEM.name
         try {
