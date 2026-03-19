@@ -23,6 +23,7 @@ import com.xichen.cloudphoto.ui.ProfileScreen
 import com.xichen.cloudphoto.ui.SettingsScreen
 import com.xichen.cloudphoto.ui.ThemeSettingsScreen
 import com.xichen.cloudphoto.ui.StorageScreen
+import com.xichen.cloudphoto.ui.StorageTutorialScreen
 import com.xichen.cloudphoto.AppViewModel
 
 /**
@@ -37,6 +38,7 @@ sealed class Screen(val route: String) {
     object EditStorageConfig : Screen("storage/edit/{configId}") {
         fun createRoute(configId: String) = "storage/edit/$configId"
     }
+    object StorageTutorial : Screen("storage/tutorial")
     object Settings : Screen("settings")
     object Profile : Screen("profile")
     object AccountSecurity : Screen("account_security")
@@ -162,6 +164,9 @@ fun NavGraph(
                 viewModel = viewModel,
                 configToEdit = configToEdit
             )
+        }
+        composable(Screen.StorageTutorial.route) {
+            StorageTutorialScreen(onBack = { navController.popBackStack() })
         }
         composable(Screen.Settings.route) {
             SettingsScreen(

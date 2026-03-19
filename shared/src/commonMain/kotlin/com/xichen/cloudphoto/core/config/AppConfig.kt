@@ -9,6 +9,13 @@ object ApiConfig {
     // 在命令行执行: adb reverse tcp:8080 tcp:8080
     // 然后使用 127.0.0.1:8080
     const val AUTH_BASE_URL: String = "http://127.0.0.1:8080"
+
+    /**
+     * 存储空间配置教程 URL（各云厂商获取 AccessKey/Bucket 等）
+     * Android：直接使用本常量；iOS：通过 [storageConfigTutorialUrlString] 读取（同源）
+     */
+    const val STORAGE_CONFIG_TUTORIAL_URL: String =
+        "https://help.aliyun.com/document_detail/31883.html"
 }
 
 /**

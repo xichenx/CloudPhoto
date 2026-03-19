@@ -24,7 +24,7 @@ class AppViewModel: ObservableObject {
     private let tokenManager: TokenManager
     
     init() {
-        let container = AppContainerHolder.shared.getContainer()
+        let container = AppContainerHolder.shared.getContainer(context: nil)
         self.photoService = container.photoService
         self.configService = container.configService
         self.albumService = container.albumService

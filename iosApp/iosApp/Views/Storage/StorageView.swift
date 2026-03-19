@@ -19,8 +19,14 @@ struct StorageView: View {
                 }
             }
             .navigationDestination(for: StorageRoute.self) { route in
-                if route == .addConfig {
-                    AddConfigView(viewModel: viewModel, path: $path)
+                switch route {
+                case .addConfig:
+                    AddConfigView(viewModel: viewModel, configToEdit: nil, path: $path)
+                case .editConfig(let configId):
+                    let config = viewModel.configs.first { $0.id == configId }
+                    AddConfigView(viewModel: viewModel, configToEdit: config, path: $path)
+                case .configTutorial:
+                    StorageTutorialWebView(path: $path)
                 }
             }
         }
@@ -47,6 +53,12 @@ struct StorageView: View {
                     .cornerRadius(AppTheme.Design.cornerRadiusMedium)
             }
             .padding(.top, AppTheme.Design.spacingM)
+            Button(action: { path.append(.configTutorial) }) {
+                Label("各厂商获取配置教程", systemImage: "book.circle")
+                    .font(.system(size: AppTheme.Design.fontSizeBody))
+                    .foregroundColor(AppTheme.Colors.primary)
+            }
+            .padding(.top, AppTheme.Design.spacingS)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.Colors.background)
@@ -65,20 +77,27 @@ struct StorageView: View {
     private var storageListContent: some View {
         List {
             Section {
-                HStack {
-                    VStack(alignment: .leading, spacing: AppTheme.Design.spacingXS) {
-                        Text("存储配置")
-                            .font(.system(size: AppTheme.Design.fontSizeTitle3, weight: .semibold))
-                        Text("共 \(viewModel.configs.count) 个配置")
-                            .font(.system(size: AppTheme.Design.fontSizeBody))
+                Button(action: { path.append(.configTutorial) }) {
+                    HStack(spacing: AppTheme.Design.spacingS) {
+                        Image(systemName: "book.circle.fill")
+                            .font(.system(size: 22))
+                            .foregroundColor(AppTheme.Colors.primary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("各厂商获取配置教程")
+                                .font(.system(size: AppTheme.Design.fontSizeHeadline, weight: .medium))
+                                .foregroundColor(AppTheme.Colors.text)
+                            Text("阿里云 OSS、腾讯云 COS、AWS S3 等配置说明")
+                                .font(.system(size: AppTheme.Design.fontSizeCaption))
+                                .foregroundColor(AppTheme.Colors.secondaryText)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 14, weight: .semibold))
                             .foregroundColor(AppTheme.Colors.secondaryText)
                     }
-                    Spacer()
-                    Image(systemName: "folder.fill")
-                        .font(.system(size: 40))
-                        .foregroundColor(AppTheme.Colors.primary)
+                    .padding(.vertical, AppTheme.Design.spacingXS)
                 }
-                .padding(.vertical, AppTheme.Design.spacingXS)
+                .buttonStyle(.plain)
             }
 
             Section("存储配置") {
@@ -86,6 +105,7 @@ struct StorageView: View {
                     StorageConfigRow(
                         config: config,
                         isDefault: config.id == viewModel.defaultConfig?.id,
+                        onEdit: { path.append(.editConfig(configId: config.id)) },
                         onSetDefault: { viewModel.setDefaultConfig(configId: config.id) },
                         onDelete: { viewModel.deleteConfig(configId: config.id) }
                     )

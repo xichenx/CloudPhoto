@@ -7,6 +7,7 @@ import Shared
 struct StorageConfigRow: View {
     let config: StorageConfig
     let isDefault: Bool
+    var onEdit: (() -> Void)? = nil
     let onSetDefault: () -> Void
     let onDelete: () -> Void
 
@@ -17,7 +18,7 @@ struct StorageConfigRow: View {
                     Circle()
                         .fill(AppTheme.Colors.primary.opacity(0.1))
                         .frame(width: 48, height: 48)
-                    Image(systemName: "cloud.fill")
+                    Image(systemName: providerSystemImage)
                         .foregroundColor(AppTheme.Colors.primary)
                         .font(.system(size: 20))
                 }
@@ -37,7 +38,7 @@ struct StorageConfigRow: View {
                                 .cornerRadius(AppTheme.Design.cornerRadiusSmall)
                         }
                     }
-                    Text(config.provider.name)
+                    Text(storageProviderDisplayName(config.provider))
                         .font(.system(size: AppTheme.Design.fontSizeSubheadline))
                         .foregroundColor(AppTheme.Colors.secondaryText)
                 }
@@ -55,21 +56,29 @@ struct StorageConfigRow: View {
             Divider()
 
             HStack(spacing: AppTheme.Design.spacingS) {
+                if let onEdit = onEdit {
+                    Button("编辑", action: onEdit)
+                        .buttonStyle(.bordered)
+                        .tint(AppTheme.Colors.primary)
+                }
                 if !isDefault {
-                    Button("设为默认") {
-                        onSetDefault()
-                    }
+                    Button("设为默认", action: onSetDefault)
+                        .buttonStyle(.bordered)
+                        .tint(AppTheme.Colors.primary)
+                }
+                Button("删除", action: onDelete)
                     .buttonStyle(.bordered)
-                    .tint(AppTheme.Colors.primary)
-                }
-                Button("删除") {
-                    onDelete()
-                }
-                .buttonStyle(.bordered)
-                .tint(AppTheme.Colors.error)
+                    .tint(AppTheme.Colors.error)
             }
         }
         .padding(.vertical, AppTheme.Design.spacingS)
+    }
+
+    private var providerSystemImage: String {
+        switch config.provider {
+        case .minio: return "folder.fill"
+        default: return "cloud.fill"
+        }
     }
 }
 
