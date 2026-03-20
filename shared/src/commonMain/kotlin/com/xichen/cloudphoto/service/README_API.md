@@ -16,8 +16,9 @@
 - **功能**: 
   - 获取照片列表（支持分页、按相册筛选）
   - 获取照片详情
-  - 请求 Presigned URL（前端直传）
-  - 上传完成通知
+  - **上传照片（推荐）**：POST /api/photos/upload，由后端从数据库读取用户存储配置并经 SDK 转发到存储商，App 不直连存储商
+  - 请求 Presigned URL（可选，仅需直传时使用）
+  - 上传完成通知（直传完成后落库）
   - 删除照片
   - 批量删除照片
 - **已接入**: ✅ 已完成
@@ -92,7 +93,20 @@ result.onSuccess { savedConfig ->
 }
 ```
 
-#### 前端直传流程
+#### 推荐：后端代理上传（无需直连存储商）
+```kotlin
+// 将文件通过后端接口上传，后端从数据库读取用户存储配置，经各存储商 SDK 转发
+val result = photoApiService.uploadPhoto(
+    file = imageFile,  // MultipartFile / 本地文件
+    albumId = null,
+    takenAt = null
+)
+result.onSuccess { photoDTO ->
+    // 上传成功，photoDTO 含完整 URL 等
+}.onError { _, message -> }
+```
+
+#### 可选：前端直传流程（Presigned URL）
 ```kotlin
 // 1. 请求 Presigned URL
 val presignResult = photoApiService.requestPresignUrl(

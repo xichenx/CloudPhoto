@@ -1,12 +1,12 @@
 # CloudPhoto - 云相册应用
 
-基于 **Kotlin Multiplatform (KMP)** 的云相册应用，支持 Android（Jetpack Compose）与 iOS（SwiftUI）。数据通过后端 API 管理，照片上传采用 Presigned URL 直传对象存储，减少服务端带宽与存储压力。
+基于 **Kotlin Multiplatform (KMP)** 的云相册应用，支持 Android（Jetpack Compose）与 iOS（SwiftUI）。数据通过后端 API 管理。**图片上传统一由 App 调用后端接口**：App 将文件提交到后端，后端从数据库读取用户已配置的存储信息，通过各存储商官方 SDK 转发到存储商，App 无需直连存储商 API。
 
 ## 功能特性
 
 - **账号与认证**：注册、登录、Token 刷新、修改密码、登出
-- **拍照即上传**：调用系统相机拍照后，通过后端获取 Presigned URL 直传对象存储，上传完成后通知后端落库
-- **多存储支持**：对象存储配置由后端管理，支持多种提供商
+- **拍照即上传**：调用系统相机拍照后，通过后端 **POST /api/photos/upload** 接口上传（后端从数据库读取用户存储配置并转发到存储商），无需直连存储商
+- **多存储支持**：对象存储配置由用户在前端保存到数据库，后端从数据库获取配置，通过各存储商 **官方 SDK** 接入
   - 阿里云 OSS
   - AWS S3
   - 腾讯云 COS
@@ -25,7 +25,7 @@
 
 - **移动端**：本仓库 KMP 项目（`shared` + `composeApp` + `iosApp`）
 - **后端**：需单独部署 [CloudPhotoAPI](../CloudPhotoAPI) 服务（如 `http://host:8080`），提供认证、照片、相册、存储配置等 REST API
-- **数据流**：登录后请求携带 Token → 照片/相册/配置均通过后端 API 读写 → 上传照片时先请求 Presigned URL，再直传对象存储，最后通知后端完成落库
+- **数据流**：登录后请求携带 Token → 照片/相册/配置均通过后端 API 读写 → 上传照片时 App 调用 **POST /api/photos/upload**，后端从数据库取用户存储配置，经 SDK 转发到存储商并落库
 
 ## 项目结构
 
@@ -123,7 +123,7 @@ adb reverse tcp:8080 tcp:8080
 ### 4. 拍照上传
 
 - 进入「拍照」Tab，点击拍照
-- 授予相机权限后拍摄，确认后上传（Presigned URL 直传对象存储，再通知后端）
+- 授予相机权限后拍摄，确认后通过后端 **/api/photos/upload** 上传（后端转发到用户配置的存储商，App 不直连存储商）
 
 ### 5. 照片与相册
 
@@ -151,7 +151,7 @@ adb reverse tcp:8080 tcp:8080
 ### API 与配置
 
 - 接口基地址：`shared/src/commonMain/.../core/config/AppConfig.kt` 中 `ApiConfig.AUTH_BASE_URL`（默认 `http://127.0.0.1:8080`）
-- 后端 API 使用方式、Presigned 直传流程、Token 管理、模型转换等见：  
+- 后端 API 使用方式、**上传流程（推荐走后端 /api/photos/upload）**、Token 管理、模型转换等见：  
   **`shared/src/commonMain/kotlin/com/xichen/cloudphoto/service/README_API.md`**
 - 网络层（Ktor、ApiResult、请求封装）见：  
   **`shared/src/commonMain/.../core/network/README.md`**
@@ -159,22 +159,20 @@ adb reverse tcp:8080 tcp:8080
 ### 添加新的对象存储提供商
 
 1. 在 `shared/.../model/StorageConfig.kt` 的 `StorageProvider` 枚举中增加新类型
-2. 在 `shared/.../storage/impl/` 下实现对应 `StorageService`（若仍由后端生成 Presigned URL，则主要确保客户端直传逻辑与后端约定一致）
-3. 在 `StorageServiceFactory`（或当前工厂类）中注册新实现
-
-（若完全由后端生成 Presigned URL，客户端可能只需在配置项中增加展示与枚举即可，具体以后端与现有工厂实现为准。）
+2. 后端在 `CloudStorageServiceImpl` 中按提供商分支，使用该厂商 **官方 SDK** 实现上传/删除/获取 URL（配置从数据库读取）
+3. 客户端在配置项中增加展示与枚举即可，上传统一走后端接口
 
 ### 注意事项
 
 - 生产环境请使用 HTTPS 并正确配置后端地址；勿在代码中提交真实密钥
-- 对象存储签名与安全策略以后端与各厂商文档为准，客户端仅负责直传与配置展示
+- 存储商密钥由用户在前端配置并加密存库，后端从数据库读取后经 SDK 访问存储商，客户端不直连存储商 API
 - 相册、照片元数据（宽高、大小等）以后端与 API 设计为准，客户端按 DTO 展示
 
 ## 文档索引
 
 | 文档 | 说明 |
 |------|------|
-| [README_API.md](shared/src/commonMain/kotlin/com/xichen/cloudphoto/service/README_API.md) | 后端 API 接入、Presigned 直传、Token、模型转换 |
+| [README_API.md](shared/src/commonMain/kotlin/com/xichen/cloudphoto/service/README_API.md) | 后端 API 接入、上传接口（推荐 /upload）、Token、模型转换 |
 | [core/network/README.md](shared/src/commonMain/kotlin/com/xichen/cloudphoto/core/network/README.md) | 网络请求框架（Ktor、ApiResult）使用说明 |
 | [core/permission/README.md](shared/src/commonMain/kotlin/com/xichen/cloudphoto/core/permission/README.md) | 权限（expect/actual）说明（若有） |
 
