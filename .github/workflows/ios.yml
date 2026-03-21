@@ -1,6 +1,13 @@
-# CloudPhoto — Android (Compose + shared Android target)
-# Trigger: manual only (Actions → Android → Run workflow).
-name: Android
+# CloudPhoto — iOS (Shared.framework + SwiftUI / Xcode)
+#
+# Artifacts: built for iphonesimulator only. The uploaded .app installs on the iOS Simulator
+# on a Mac, not on physical devices. Device builds need iphoneos + code signing / provisioning
+# or distribution (e.g. TestFlight).
+#
+# Requires Xcode 16+ (iosApp.xcodeproj uses objectVersion 77). Use macos-15+, not macos-14 (Xcode 15).
+#
+# Trigger: manual only (Actions → iOS → Run workflow).
+name: iOS
 
 on:
   workflow_dispatch:
@@ -12,13 +19,13 @@ permissions:
   actions: write
 
 concurrency:
-  group: android-${{ github.workflow }}-${{ github.ref }}
+  group: ios-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
-    name: assembleDebug
-    runs-on: ubuntu-latest
+    name: Kotlin framework + Xcode
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
 
@@ -31,18 +38,40 @@ jobs:
           java-version: 17
           cache: gradle
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: .spm-cache
+          key: spm-${{ runner.os }}-${{ hashFiles('iosApp/**/Package.resolved') }}
+          restore-keys: |
+            spm-${{ runner.os }}-
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build composeApp Debug
-        run: ./gradlew :composeApp:assembleDebug --no-daemon --stacktrace
+      - name: Build Shared.framework (iOS Simulator / Debug)
+        run: ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64 -PXCODE_CONFIGURATION=DEBUG --no-daemon --stacktrace
 
-      - name: Upload Debug APK (test install)
+      - name: Build iosApp with Xcode
+        env:
+          OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED: "YES"
+        run: |
+          xcodebuild \
+            -project iosApp/iosApp.xcodeproj \
+            -scheme iosApp \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "${GITHUB_WORKSPACE}/ios-derived" \
+            -clonedSourcePackagesDirPath "${GITHUB_WORKSPACE}/.spm-cache" \
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM= \
+            build
+
+      # Simulator-only: install via Simulator on a Mac (e.g. simctl install). Not for physical devices.
+      - name: Upload Simulator .app (simulator-only; not for physical devices)
         uses: actions/upload-artifact@v4
         with:
-          name: cloudphoto-android-debug
-          path: composeApp/build/outputs/apk/debug/*.apk
+          name: cloudphoto-ios-simulator-debug
+          path: ios-derived/Build/Products/Debug-iphonesimulator/*.app
           if-no-files-found: error
