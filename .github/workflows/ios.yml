@@ -1,44 +1,82 @@
-name: iOS starter workflow
+# CloudPhoto — iOS (Shared.framework + SwiftUI / Xcode)
+#
+# Artifacts: built for iphonesimulator only. The uploaded .app installs on the iOS Simulator
+# on a Mac, not on physical devices. Device builds need iphoneos + code signing / provisioning
+# or distribution (e.g. TestFlight).
+#
+# Requires Xcode 16+ (iosApp.xcodeproj uses objectVersion 77). Use macos-15+, not macos-14 (Xcode 15).
+#
+# Trigger: manual only (Actions → iOS → Run workflow).
+name: iOS
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  workflow_dispatch:
+
+# `actions: write` is required for actions/upload-artifact. A permissions block denies
+# anything not listed, so contents:read alone prevents uploads.
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: ios-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
-    name: Build and Test default scheme using any available iPhone simulator
-    runs-on: macos-latest
-
+    name: Kotlin framework + Xcode
+    runs-on: macos-15
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Set Default Scheme
-        run: |
-          scheme_list=$(xcodebuild -list -json | tr -d "\n")
-          default=$(echo $scheme_list | ruby -e "require 'json'; puts JSON.parse(STDIN.gets)['project']['targets'][0]")
-          echo $default | cat >default
-          echo Using default scheme: $default
-      - name: Build
+      - uses: actions/checkout@v4
+
+      - uses: gradle/actions/wrapper-validation@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: .spm-cache
+          key: spm-${{ runner.os }}-${{ hashFiles('iosApp/**/Package.resolved') }}
+          restore-keys: |
+            spm-${{ runner.os }}-
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build Shared.framework (iOS Simulator / Debug)
+        run: ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64 -PXCODE_CONFIGURATION=DEBUG --no-daemon --stacktrace
+
+      # Gradle only produces iosSimulatorArm64 Shared.framework. A "generic" simulator
+      # destination also compiles x86_64, which cannot link that framework — exclude i386/x86_64.
+      - name: Build iosApp with Xcode
         env:
-          scheme: ${{ 'default' }}
-          platform: ${{ 'iOS Simulator' }}
+          OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED: "YES"
         run: |
-          # xcrun xctrace returns via stderr, not the expected stdout (see https://developer.apple.com/forums/thread/663959)
-          device=`xcrun xctrace list devices 2>&1 | grep -oE 'iPhone.*?[^\(]+' | head -1 | awk '{$1=$1;print}' | sed -e "s/ Simulator$//"`
-          if [ $scheme = default ]; then scheme=$(cat default); fi
-          if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then filetype_parameter="workspace" && file_to_build="`ls -A | grep -i \\.xcworkspace\$`"; else filetype_parameter="project" && file_to_build="`ls -A | grep -i \\.xcodeproj\$`"; fi
-          file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
-          xcodebuild build-for-testing -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -destination "platform=$platform,name=$device"
-      - name: Test
-        env:
-          scheme: ${{ 'default' }}
-          platform: ${{ 'iOS Simulator' }}
-        run: |
-          # xcrun xctrace returns via stderr, not the expected stdout (see https://developer.apple.com/forums/thread/663959)
-          device=`xcrun xctrace list devices 2>&1 | grep -oE 'iPhone.*?[^\(]+' | head -1 | awk '{$1=$1;print}' | sed -e "s/ Simulator$//"`
-          if [ $scheme = default ]; then scheme=$(cat default); fi
-          if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then filetype_parameter="workspace" && file_to_build="`ls -A | grep -i \\.xcworkspace\$`"; else filetype_parameter="project" && file_to_build="`ls -A | grep -i \\.xcodeproj\$`"; fi
-          file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
-          xcodebuild test-without-building -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -destination "platform=$platform,name=$device"
+          xcodebuild \
+            -project iosApp/iosApp.xcodeproj \
+            -scheme iosApp \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "${GITHUB_WORKSPACE}/ios-derived" \
+            -clonedSourcePackagesDirPath "${GITHUB_WORKSPACE}/.spm-cache" \
+            ARCHS=arm64 \
+            EXCLUDED_ARCHS=x86_64 \
+            ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM= \
+            build
+
+      # Simulator-only: install via Simulator on a Mac (e.g. simctl install). Not for physical devices.
+      - name: Upload Simulator .app (simulator-only; not for physical devices)
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudphoto-ios-simulator-debug
+          path: ios-derived/Build/Products/Debug-iphonesimulator/*.app
+          if-no-files-found: error
