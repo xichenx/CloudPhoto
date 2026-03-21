@@ -3,13 +3,13 @@
 # Artifacts: built for iphonesimulator only. The uploaded .app installs on the iOS Simulator
 # on a Mac, not on physical devices. Device builds need iphoneos + code signing / provisioning
 # or distribution (e.g. TestFlight).
+#
+# Requires Xcode 16+ (iosApp.xcodeproj uses objectVersion 77). Use macos-15+, not macos-14 (Xcode 15).
+#
+# Trigger: manual only (Actions → iOS → Run workflow).
 name: iOS
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
