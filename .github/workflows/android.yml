@@ -1,11 +1,8 @@
 # CloudPhoto — Android (Compose + shared Android target)
+# Trigger: manual only (Actions → Android → Run workflow).
 name: Android
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
