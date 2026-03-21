@@ -11,7 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -32,7 +32,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.TextUnit
@@ -41,9 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.xichen.cloudphoto.AppViewModel
 import com.xichen.cloudphoto.model.Photo
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.request.get
+import com.xichen.cloudphoto.cache.PhotoImageCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -53,7 +53,16 @@ import java.io.File
 @Composable
 fun PhotosScreen(viewModel: AppViewModel) {
     val photos by viewModel.photos.collectAsState()
-    
+    var fullscreenStartIndex by remember { mutableStateOf<Int?>(null) }
+
+    fullscreenStartIndex?.let { index ->
+        PhotoFullscreenViewer(
+            photos = photos,
+            initialIndex = index,
+            onDismiss = { fullscreenStartIndex = null }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -102,11 +111,15 @@ fun PhotosScreen(viewModel: AppViewModel) {
                 verticalArrangement = Arrangement.spacedBy(2.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(
+                itemsIndexed(
                     items = photos,
-                    key = { it.id }
-                ) { photo ->
-                    ModernPhotoItem(photo = photo, viewModel = viewModel)
+                    key = { _, photo -> photo.id }
+                ) { index, photo ->
+                    ModernPhotoItem(
+                        photo = photo,
+                        viewModel = viewModel,
+                        onClick = { fullscreenStartIndex = index }
+                    )
                 }
             }
         }
@@ -198,28 +211,29 @@ private fun EmptyPhotosState(
 @Composable
 fun ModernPhotoItem(
     photo: Photo,
-    viewModel: AppViewModel
+    viewModel: AppViewModel,
+    onClick: () -> Unit = {}
 ) {
     var imageBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var isLoading by remember { mutableStateOf(true) }
-    val scope = rememberCoroutineScope()
-    
-    LaunchedEffect(photo.url) {
-        scope.launch {
-            try {
-                isLoading = true
-                val httpClient = HttpClient()
-                val bytes = httpClient.get(photo.url).body<ByteArray>()
-                val bitmap = withContext(Dispatchers.Default) {
-                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                }
-                imageBitmap = bitmap
-                isLoading = false
-                httpClient.close()
-            } catch (e: Exception) {
-                isLoading = false
-                e.printStackTrace()
-            }
+
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
+    val gridMaxSidePx = remember(configuration.screenWidthDp, density.density) {
+        (configuration.screenWidthDp * density.density / 3f).toInt().coerceIn(64, 2048)
+    }
+    val imageUrl = remember(photo.id, photo.thumbnailUrl, photo.url) {
+        photo.thumbnailUrl?.takeIf { it.isNotBlank() } ?: photo.url
+    }
+
+    LaunchedEffect(imageUrl, gridMaxSidePx) {
+        try {
+            isLoading = true
+            imageBitmap = PhotoImageCache.getBitmap(imageUrl, gridMaxSidePx)
+            isLoading = false
+        } catch (e: Exception) {
+            isLoading = false
+            e.printStackTrace()
         }
     }
     
@@ -228,7 +242,8 @@ fun ModernPhotoItem(
         modifier = Modifier
             .aspectRatio(1f)
             .fillMaxWidth()
-            .clip(RoundedCornerShape(2.dp)),
+            .clip(RoundedCornerShape(2.dp))
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(2.dp),
         color = MaterialTheme.colorScheme.surfaceVariant
     ) {
@@ -236,16 +251,7 @@ fun ModernPhotoItem(
             modifier = Modifier.fillMaxSize()
         ) {
             if (isLoading) {
-                // 加载状态
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(32.dp),
-                        strokeWidth = 3.dp
-                    )
-                }
+                ShimmerPlaceholder(modifier = Modifier.fillMaxSize())
             } else {
                 imageBitmap?.let { bitmap ->
                     Image(

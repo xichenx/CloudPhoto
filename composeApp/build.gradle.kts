@@ -23,8 +23,8 @@ kotlin {
             implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.0")
             implementation("androidx.core:core-ktx:1.17.0")
             
-            // Ktor for Android
-            implementation("io.ktor:ktor-client-android:2.3.12")
+            // Ktor：OkHttp 引擎 + 磁盘缓存（Caches 目录、LRU，非业务持久化相册）
+            implementation("io.ktor:ktor-client-okhttp:2.3.12")
             implementation("io.ktor:ktor-client-content-negotiation:2.3.12")
             implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.12")
             implementation("io.ktor:ktor-client-logging:2.3.12")

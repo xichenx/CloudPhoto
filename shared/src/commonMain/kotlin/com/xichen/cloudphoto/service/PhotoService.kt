@@ -1,5 +1,6 @@
 package com.xichen.cloudphoto.service
 
+import com.xichen.cloudphoto.model.MockPhotos
 import com.xichen.cloudphoto.model.Photo
 import com.xichen.cloudphoto.model.StorageConfig
 import com.xichen.cloudphoto.repository.ConfigRepository
@@ -135,7 +136,8 @@ class PhotoService(
     }
 
     suspend fun getAllPhotos(): List<Photo> {
-        return photoRepository.getAllPhotos()
+        val photos = photoRepository.getAllPhotos()
+        return if (photos.isEmpty()) MockPhotos.tenFujiGrid() else photos
     }
     
     suspend fun getPhotosByAlbum(albumId: String): List<Photo> {

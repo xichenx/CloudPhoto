@@ -9,6 +9,8 @@ struct PhotosView: View {
     @State private var showImagePicker = false
     @State private var selectedImage: UIImage?
     @State private var showUploadDialog = false
+    @State private var showFullscreenGallery = false
+    @State private var fullscreenStartIndex = 0
 
     var body: some View {
         NavigationView {
@@ -19,6 +21,16 @@ struct PhotosView: View {
             }
         }
         .toolbar(.visible, for: .tabBar)
+        .fullScreenCover(isPresented: $showFullscreenGallery) {
+            PhotoFullscreenViewer(
+                photos: viewModel.photos,
+                initialIndex: fullscreenStartIndex,
+                onDismiss: { showFullscreenGallery = false },
+                onDeletePhoto: { photoId in
+                    viewModel.deletePhoto(photoId: photoId)
+                }
+            )
+        }
         .sheet(isPresented: $showImagePicker) {
             ImagePicker(image: $selectedImage, showUploadDialog: $showUploadDialog)
         }
@@ -76,34 +88,20 @@ struct PhotosView: View {
                 ],
                 spacing: 1
             ) {
-                ForEach(viewModel.photos, id: \.id) { photo in
-                    AsyncImage(url: URL(string: photo.url)) { phase in
-                        Group {
-                            switch phase {
-                            case .empty:
-                                ZStack {
-                                    AppTheme.Colors.surface
-                                    ProgressView()
-                                        .tint(AppTheme.Colors.primary)
-                                }
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                            case .failure:
-                                ZStack {
-                                    AppTheme.Colors.surface
-                                    Image(systemName: "photo")
-                                        .foregroundColor(AppTheme.Colors.secondaryText)
-                                        .font(.system(size: 24))
-                                }
-                            @unknown default:
-                                EmptyView()
-                            }
-                        }
+                ForEach(Array(viewModel.photos.enumerated()), id: \.element.id) { index, photo in
+                    CachedPhotoImage(
+                        url: photo.thumbnailUrl.flatMap { URL(string: String(describing: $0)) }
+                            ?? URL(string: String(describing: photo.url)),
+                        contentMode: .fill
+                    )
                         .frame(width: UIScreen.main.bounds.width / 3 - 1, height: UIScreen.main.bounds.width / 3 - 1)
                         .clipped()
-                    }
+                        .contentShape(Rectangle())
+                        .background(AppTheme.Colors.surface)
+                        .onTapGesture {
+                            fullscreenStartIndex = index
+                            showFullscreenGallery = true
+                        }
                 }
             }
             .padding(0)

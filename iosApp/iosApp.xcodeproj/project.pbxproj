@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		B5E1A2C3D4E5F60718293A4B /* SkeletonView in Frameworks */ = {isa = PBXBuildFile; productRef = B5E1A2C3D4E5F60718293A4C /* SkeletonView */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		F3E52FCDC3A47DAA8723AB98 /* CloudPhoto.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CloudPhoto.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -41,6 +45,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B5E1A2C3D4E5F60718293A4B /* SkeletonView in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -85,6 +90,7 @@
 			);
 			name = iosApp;
 			packageProductDependencies = (
+				B5E1A2C3D4E5F60718293A4C /* SkeletonView */,
 			);
 			productName = iosApp;
 			productReference = F3E52FCDC3A47DAA8723AB98 /* CloudPhoto.app */;
@@ -114,6 +120,9 @@
 			);
 			mainGroup = 8BDCD62FCB9EB8C27A89974F;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				B5E1A2C3D4E5F60718293A4D /* XCRemoteSwiftPackageReference "SkeletonView" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5973DA130E37ED8066608175 /* Products */;
 			projectDirPath = "";
@@ -177,12 +186,15 @@
 				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
 				DEVELOPMENT_TEAM = YA4GMMVPW6;
 				ENABLE_PREVIEWS = YES;
-				FRAMEWORK_SEARCH_PATHS = (
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"$(SRCROOT)/../shared/build/bin/iosArm64/debugFramework",
+					"$(SRCROOT)/../shared/build/bin/iosArm64/releaseFramework",
+				);
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(inherited)",
 					"$(SRCROOT)/../shared/build/bin/iosSimulatorArm64/debugFramework",
 					"$(SRCROOT)/../shared/build/bin/iosSimulatorArm64/releaseFramework",
-					"$(SRCROOT)/../shared/build/bin/iosArm64/debugFramework",
-					"$(SRCROOT)/../shared/build/bin/iosArm64/releaseFramework",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = iosApp/Info.plist;
@@ -346,12 +358,15 @@
 				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
 				DEVELOPMENT_TEAM = YA4GMMVPW6;
 				ENABLE_PREVIEWS = YES;
-				FRAMEWORK_SEARCH_PATHS = (
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"$(SRCROOT)/../shared/build/bin/iosArm64/debugFramework",
+					"$(SRCROOT)/../shared/build/bin/iosArm64/releaseFramework",
+				);
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = (
 					"$(inherited)",
 					"$(SRCROOT)/../shared/build/bin/iosSimulatorArm64/debugFramework",
 					"$(SRCROOT)/../shared/build/bin/iosSimulatorArm64/releaseFramework",
-					"$(SRCROOT)/../shared/build/bin/iosArm64/debugFramework",
-					"$(SRCROOT)/../shared/build/bin/iosArm64/releaseFramework",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = iosApp/Info.plist;
@@ -400,6 +415,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		B5E1A2C3D4E5F60718293A4D /* XCRemoteSwiftPackageReference "SkeletonView" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Juanpe/SkeletonView.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.31.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B5E1A2C3D4E5F60718293A4C /* SkeletonView */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B5E1A2C3D4E5F60718293A4D /* XCRemoteSwiftPackageReference "SkeletonView" */;
+			productName = SkeletonView;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = D7DF871649E1EA4B48A91518 /* Project object */;
 }
