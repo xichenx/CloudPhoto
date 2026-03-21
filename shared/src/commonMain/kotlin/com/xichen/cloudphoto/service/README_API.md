@@ -8,6 +8,7 @@
 
 ### 1. AuthService（认证服务）
 - **位置**: `com.xichen.cloudphoto.service.AuthService`
+- **构造**: 接收 `HttpClient`（由 [AppContainer](../core/di/AppContainer.kt) 提供**无默认 Token** 的实例，避免登录/注册误带旧 Token）；`PhotoApiService` / `AlbumApiService` / `ConfigApiService` 共用**带 Token** 的另一实例。
 - **功能**: 用户注册、登录、刷新 Token、登出、修改密码等
 - **已接入**: ✅ 已完成
 
@@ -177,6 +178,21 @@ object ApiConfig {
 ### 开发环境配置
 - 使用 ADB 端口转发：`adb reverse tcp:8080 tcp:8080`
 - 或直接使用服务器 IP 地址
+
+### 客户端诊断日志（可上传）
+移动端通过 **Napier → 自定义 Antilog** 统一输出到控制台，并将脱敏后的结构化行写入本地 NDJSON 队列（Android：`cacheDir/cloudphoto_remote_logs.ndjson`；iOS：Caches 目录下同文件名）。  
+`AppContainer.startDiagnosticLogUpload()` 会启动后台任务，默认 **每 5 分钟** 批量 POST 一次；也可调用 `RemoteLogUploadScheduler.requestFlushNow()` 立即尝试上传。
+
+- **路径常量**：`ApiConfig.CLIENT_LOG_BATCH_PATH`（默认 `"/api/client-logs/batch"`，与 `AUTH_BASE_URL` 拼接）
+- **HTTP**：`POST`，`Content-Type: application/json`，与业务 API 共用带 Token 的 `HttpClient`（未登录时不带 `Authorization`）
+- **请求体** `ClientLogBatchRequest`：
+  - `batchId: String` — 本次批次 ID（十六进制随机串）
+  - `platform: String` — `"android"` / `"ios"`
+  - `osVersion: String`、`appVersion: String`、`deviceModel: String?`
+  - `entries: List<ClientLogEntry>`，每项含 `tsEpochMillis`、`level`（与 `LogLevel` 同名）、`tag`、`message`、`stack`（可选，截断后的堆栈）
+- **响应**：建议 `200`/`204` 空 body；客户端不解析 body，仅判断 HTTP 成功即删除本批已上传行。
+- **服务端建议**：校验体大小与条数上限；按 `batchId` 去重；落库（MySQL / MongoDB / ClickHouse 等）后提供按用户、时间、tag 检索的管理后台。未登录用户也可写入匿名设备维度，需注意隐私与留存策略。
+- **客户端开关**：`RemoteLogConfig.bufferToFileEnabled` 为 `false` 时仅控制台日志，不再写入上传队列。
 
 ## 注意事项
 

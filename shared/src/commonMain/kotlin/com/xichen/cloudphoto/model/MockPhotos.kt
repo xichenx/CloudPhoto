@@ -13,7 +13,7 @@ object MockPhotos {
 
     fun tenFujiGrid(): List<Photo> {
         val now = Clock.System.now()
-        return (1..10).map { index ->
+        return (1..30).map { index ->
             val daysAgo = (10 - index).toLong()
             val createdAt = Instant.fromEpochMilliseconds(
                 now.toEpochMilliseconds() - (daysAgo * 24 * 60 * 60 * 1000)

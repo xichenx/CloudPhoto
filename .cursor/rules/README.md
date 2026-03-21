@@ -118,6 +118,22 @@
   - 常见问题（No such module 'Shared'、Gradle 失败、签名、类型不匹配等）
   - 验证清单
 
+### 14. Agent / 跨端工作流 (`14-agent-workflow.mdc`)
+- **适用范围**: 所有会话（alwaysApply: true）
+- **内容**:
+  - 变更分类（模型 / 服务 / 平台 / DI / 双端 UI）
+  - shared → AppContainer → Android / iOS 的推荐顺序
+  - 改完后的验证命令梯度（Kotlin → Android → iOS）
+  - 与现有专项规则的索引关系
+
+## 📎 项目 Agent Skills
+
+- **跨端功能分步清单与验证**: [.cursor/skills/cloudphoto-cross-platform-feature/SKILL.md](../skills/cloudphoto-cross-platform-feature/SKILL.md)  
+  与规则 `14` 配套：新功能、API、expect/actual、双端 UI 时的步骤模板与 `gradlew` / Xcode 验证提示。
+- **仅 Android**: [.cursor/skills/cloudphoto-android-only/SKILL.md](../skills/cloudphoto-android-only/SKILL.md)
+- **仅 iOS**: [.cursor/skills/cloudphoto-ios-only/SKILL.md](../skills/cloudphoto-ios-only/SKILL.md)
+- **仅 shared（KMP）**: [.cursor/skills/cloudphoto-shared-only/SKILL.md](../skills/cloudphoto-shared-only/SKILL.md)
+
 ## 🎯 核心技能要求
 
 ### Kotlin 技能
@@ -195,6 +211,7 @@
 | 代码风格问题 | `09-code-style.mdc` |
 | 编写测试 | `10-testing.mdc` |
 | iOS 构建/运行/排错 | `13-ios-kmp-run.mdc` |
+| 跨端改动从哪下手、验证顺序 | `14-agent-workflow.mdc` + Skill `cloudphoto-cross-platform-feature` |
 
 ## 💡 使用建议
 

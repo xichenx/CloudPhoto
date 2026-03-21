@@ -9,6 +9,7 @@ import com.xichen.cloudphoto.core.di.AppContainerHolder
 import com.xichen.cloudphoto.core.error.ErrorHandler
 import com.xichen.cloudphoto.core.theme.ThemeMode
 import com.xichen.cloudphoto.core.theme.ThemeRepository
+import com.xichen.cloudphoto.core.logger.DiagnosticLogging
 import com.xichen.cloudphoto.core.logger.Log
 import com.xichen.cloudphoto.service.AlbumService
 import com.xichen.cloudphoto.service.AuthService
@@ -31,10 +32,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val themeRepository: ThemeRepository = container.themeRepository
 
     init {
+        DiagnosticLogging.install(application.applicationContext)
         container.configRepository.init(application)
         container.photoRepository.init(application)
         container.albumRepository.init(application)
         themeRepository.init(application)
+        container.startDiagnosticLogUpload()
     }
     
     // 从容器获取服务（含认证服务，接口 baseUrl 在 shared ApiConfig 中统一配置）
@@ -118,7 +121,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
     
     /**
-     * 用户登录（支持邮箱或手机号）
+     * 用户登录（邮箱 + 密码）
      */
     fun login(account: String, password: String) {
         viewModelScope.launch {
@@ -154,14 +157,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * 用户注册
      */
-    fun register(username: String, email: String, password: String, emailCode: String, phone: String? = null) {
+    fun register(username: String, email: String, password: String, emailCode: String) {
         viewModelScope.launch {
             _authError.value = null
             val request = RegisterRequest(
                 username = username,
                 email = email,
                 password = password,
-                phone = phone,
                 emailCode = emailCode
             )
             val result = authService.register(request)

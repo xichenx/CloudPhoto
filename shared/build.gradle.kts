@@ -35,6 +35,9 @@ kotlin {
             implementation("io.ktor:ktor-client-logging:2.3.12")
             // HttpTimeout 插件已包含在 ktor-client-core 中，无需单独依赖
             
+            // Napier (KMP logging, Antilog 管道)
+            implementation("io.github.aakira:napier:2.7.1")
+
             // Coroutines
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
             

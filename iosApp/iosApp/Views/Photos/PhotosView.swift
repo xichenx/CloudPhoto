@@ -95,9 +95,8 @@ struct PhotosView: View {
                         contentMode: .fill
                     )
                         .frame(width: UIScreen.main.bounds.width / 3 - 1, height: UIScreen.main.bounds.width / 3 - 1)
-                        .clipped()
-                        .contentShape(Rectangle())
                         .background(AppTheme.Colors.surface)
+                        .photoGridItemStyle()
                         .onTapGesture {
                             fullscreenStartIndex = index
                             showFullscreenGallery = true

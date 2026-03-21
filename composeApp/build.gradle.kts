@@ -18,6 +18,7 @@ kotlin {
     sourceSets {
         androidMain.dependencies {
             implementation(compose.preview)
+            implementation(libs.coil.compose)
             implementation(libs.androidx.activity.compose)
             implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.0")
             implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.0")

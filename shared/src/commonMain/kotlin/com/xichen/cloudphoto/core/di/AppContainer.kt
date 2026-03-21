@@ -3,6 +3,7 @@ package com.xichen.cloudphoto.core.di
 import com.xichen.cloudphoto.core.auth.TokenManager
 import com.xichen.cloudphoto.core.config.ApiConfig
 import com.xichen.cloudphoto.core.network.NetworkClientFactory
+import com.xichen.cloudphoto.core.network.NetworkConfig
 import com.xichen.cloudphoto.core.theme.ThemeRepository
 import com.xichen.cloudphoto.repository.AlbumRepository
 import com.xichen.cloudphoto.repository.ConfigRepository
@@ -12,6 +13,7 @@ import com.xichen.cloudphoto.service.AlbumService
 import com.xichen.cloudphoto.service.AuthService
 import com.xichen.cloudphoto.service.ConfigApiService
 import com.xichen.cloudphoto.service.ConfigService
+import com.xichen.cloudphoto.core.logger.RemoteLogUploadScheduler
 import com.xichen.cloudphoto.service.PhotoApiService
 import com.xichen.cloudphoto.service.PhotoService
 import io.ktor.client.HttpClient
@@ -32,12 +34,32 @@ class AppContainer(context: Any? = null) {
     val albumRepository: AlbumRepository by lazy { AlbumRepository() }
     val themeRepository: ThemeRepository by lazy { ThemeRepository() }
     
-    // Network (用于对象存储直接上传)
+    // Network (用于对象存储直传，与各云厂商 endpoint 不同，单独客户端)
     private val httpClient: HttpClient by lazy {
         NetworkClientFactory.create(
-            baseUrl = null, // 对象存储使用不同的 endpoint
-            timeout = 60_000L, // 上传大文件需要更长时间
+            baseUrl = null,
+            timeout = NetworkConfig.API_TIMEOUT,
             enableLogging = true
+        )
+    }
+
+    /** 业务 API：登录/注册等，不在默认头中附带 Token */
+    private val authApiHttpClient = lazy {
+        NetworkClientFactory.create(
+            baseUrl = ApiConfig.AUTH_BASE_URL,
+            timeout = NetworkConfig.API_TIMEOUT,
+            enableLogging = true,
+            tokenManager = null
+        )
+    }
+
+    /** 业务 API：需鉴权的接口，与 Photo/Album/Config 共用，减少重复连接与配置 */
+    private val authorizedApiHttpClient = lazy {
+        NetworkClientFactory.create(
+            baseUrl = ApiConfig.AUTH_BASE_URL,
+            timeout = NetworkConfig.API_TIMEOUT,
+            enableLogging = true,
+            tokenManager = tokenManager
         )
     }
     
@@ -57,33 +79,43 @@ class AppContainer(context: Any? = null) {
     // API Services (调用后端 API)
     /** 认证服务（登录、注册、验证码等），baseUrl 由 shared ApiConfig 统一配置 */
     val authService: AuthService by lazy {
-        AuthService(baseUrl = ApiConfig.AUTH_BASE_URL)
+        AuthService(authApiHttpClient.value)
     }
     
     /** 照片 API 服务（调用后端 API） */
     val photoApiService: PhotoApiService by lazy {
-        PhotoApiService(tokenManager)
+        PhotoApiService(authorizedApiHttpClient.value)
     }
     
     /** 相册 API 服务（调用后端 API） */
     val albumApiService: AlbumApiService by lazy {
-        AlbumApiService(tokenManager)
+        AlbumApiService(authorizedApiHttpClient.value)
     }
     
     /** 对象存储配置 API 服务（调用后端 API） */
     val configApiService: ConfigApiService by lazy {
-        ConfigApiService(tokenManager)
+        ConfigApiService(authorizedApiHttpClient.value)
     }
-    
+
+    /**
+     * 启动诊断日志定时上传（需先 [com.xichen.cloudphoto.core.logger.DiagnosticLogging.install]）。
+     */
+    fun startDiagnosticLogUpload() {
+        RemoteLogUploadScheduler.start(authorizedApiHttpClient.value)
+    }
+
     /**
      * 清理资源
      */
     fun dispose() {
+        RemoteLogUploadScheduler.stop()
         httpClient.close()
-        photoApiService.close()
-        albumApiService.close()
-        configApiService.close()
-        authService.close()
+        if (authApiHttpClient.isInitialized()) {
+            authApiHttpClient.value.close()
+        }
+        if (authorizedApiHttpClient.isInitialized()) {
+            authorizedApiHttpClient.value.close()
+        }
     }
 }
 

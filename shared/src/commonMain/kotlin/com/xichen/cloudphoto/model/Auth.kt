@@ -12,23 +12,22 @@ data class SendEmailCodeRequest(
 )
 
 /**
- * 用户注册请求
+ * 用户注册请求（邮箱 + 邮箱验证码）
  */
 @Serializable
 data class RegisterRequest(
     val username: String,
     val password: String,
     val email: String,
-    val phone: String? = null,
     val emailCode: String
 )
 
 /**
- * 用户登录请求（仅支持邮箱或手机号登录）
+ * 用户登录请求（仅支持邮箱登录，[account] 为注册邮箱）
  */
 @Serializable
 data class LoginRequest(
-    val account: String, // 登录账号（邮箱或手机号）
+    val account: String,
     val password: String
 )
 

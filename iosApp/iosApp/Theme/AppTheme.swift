@@ -57,6 +57,8 @@ struct AppTheme {
     // 设计规范 - 遵循 Apple HIG
     struct Design {
         // 圆角半径（pt）
+        /// 照片九宫格单元格，与 Android `ModernPhotoItem` 的 `RoundedCornerShape(2.dp)` 对齐。
+        static let photoGridCellCornerRadius: CGFloat = 2
         static let cornerRadiusSmall: CGFloat = 8
         static let cornerRadiusMedium: CGFloat = 12
         static let cornerRadiusLarge: CGFloat = 16
@@ -165,12 +167,12 @@ extension View {
             .cornerRadius(AppTheme.Design.cornerRadiusMedium)
     }
     
-    /// 照片网格项样式 - 现代化设计
+    /// 照片网格项样式 - 与 Android 照片列表小圆角一致
     func photoGridItemStyle() -> some View {
-        self
-            .aspectRatio(1, contentMode: .fill)
-            .clipShape(RoundedRectangle(cornerRadius: AppTheme.Design.cornerRadiusSmall))
-            .contentShape(Rectangle())
+        let r = AppTheme.Design.photoGridCellCornerRadius
+        return self
+            .clipShape(RoundedRectangle(cornerRadius: r, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: r, style: .continuous))
     }
 }
 

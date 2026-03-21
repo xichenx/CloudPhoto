@@ -314,8 +314,7 @@ struct RegisterView: View {
             username: name.trimmingCharacters(in: .whitespaces),
             email: trimmedEmail,
             password: password,
-            emailCode: emailCode,
-            phone: nil
+            emailCode: emailCode
         )
     }
 }

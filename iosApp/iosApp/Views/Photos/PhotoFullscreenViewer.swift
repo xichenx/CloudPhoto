@@ -1,3 +1,4 @@
+import Nuke
 import SkeletonView
 import SwiftUI
 import UIKit
@@ -437,6 +438,9 @@ private final class PhotoFullscreenHostViewController: UIViewController, UIPageV
         options: [UIPageViewController.OptionsKey.interPageSpacing: 0]
     )
 
+    /// 与 Android `HorizontalPager(beyondViewportPageCount = 1)` 类似：提前把左右页拉进 Nuke 磁盘/内存缓存，减少滑到邻页时的空白。
+    private let neighborPrefetcher = ImagePrefetcher(pipeline: .shared)
+
     private var urlStrings: [String]
     private var pageCache: [Int: PhotoPageViewController] = [:]
     private var currentIndex: Int = 0
@@ -468,6 +472,7 @@ private final class PhotoFullscreenHostViewController: UIViewController, UIPageV
         guard urls != urlStrings else { return }
         urlStrings = urls
         pageCache.removeAll()
+        neighborPrefetcher.stopPrefetching()
         embeddedPageController.setViewControllers(nil, direction: .forward, animated: false, completion: nil)
         if urls.isEmpty {
             currentIndex = 0
@@ -477,6 +482,7 @@ private final class PhotoFullscreenHostViewController: UIViewController, UIPageV
         if let vc = pageController(at: currentIndex) {
             embeddedPageController.setViewControllers([vc], direction: .forward, animated: false, completion: nil)
         }
+        prefetchNeighbors(around: currentIndex)
     }
 
     func scrollToPage(_ index: Int, animated: Bool) {
@@ -485,6 +491,7 @@ private final class PhotoFullscreenHostViewController: UIViewController, UIPageV
         guard let vc = pageController(at: index) else { return }
         embeddedPageController.setViewControllers([vc], direction: dir, animated: animated) { _ in
             self.currentIndex = index
+            self.prefetchNeighbors(around: index)
         }
     }
 
@@ -505,6 +512,7 @@ private final class PhotoFullscreenHostViewController: UIViewController, UIPageV
         if let first = pageController(at: currentIndex) {
             embeddedPageController.setViewControllers([first], direction: .forward, animated: false, completion: nil)
         }
+        prefetchNeighbors(around: currentIndex)
     }
 
     override var prefersHomeIndicatorAutoHidden: Bool { false }
@@ -521,6 +529,20 @@ private final class PhotoFullscreenHostViewController: UIViewController, UIPageV
         vc.onDoubleTapFillChrome = { [weak self] hide in self?.onDoubleTapFillChrome?(hide) }
         pageCache[index] = vc
         return vc
+    }
+
+    private func prefetchNeighbors(around center: Int) {
+        neighborPrefetcher.stopPrefetching()
+        guard !urlStrings.isEmpty else { return }
+        var requests: [ImageRequest] = []
+        if center > 0, let u = URL(string: urlStrings[center - 1]) {
+            requests.append(ImageRequest(url: u))
+        }
+        if center + 1 < urlStrings.count, let u = URL(string: urlStrings[center + 1]) {
+            requests.append(ImageRequest(url: u))
+        }
+        guard !requests.isEmpty else { return }
+        neighborPrefetcher.startPrefetching(with: requests)
     }
 
     // MARK: UIPageViewControllerDataSource
@@ -556,6 +578,7 @@ private final class PhotoFullscreenHostViewController: UIViewController, UIPageV
         guard completed, let vc = pageViewController.viewControllers?.first as? PhotoPageViewController else { return }
         currentIndex = vc.pageIndex
         onPageChange?(currentIndex)
+        prefetchNeighbors(around: currentIndex)
         vc.applyZoomFitAfterPageTransition()
     }
 }
@@ -570,7 +593,8 @@ private final class PhotoPageViewController: UIViewController {
 
     let zoomShell = PhotoZoomScrollContainerView()
     private let skeletonLoading = UIView()
-    private var task: Task<Void, Never>?
+    private var imageTask: ImageTask?
+    private var imageLoadSucceeded = false
 
     init(pageIndex: Int, urlString: String) {
         self.pageIndex = pageIndex
@@ -606,6 +630,11 @@ private final class PhotoPageViewController: UIViewController {
         view.addSubview(zoomShell)
     }
 
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        loadIfNeeded()
+    }
+
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         loadIfNeeded()
@@ -619,22 +648,24 @@ private final class PhotoPageViewController: UIViewController {
     }
 
     private func loadIfNeeded() {
-        task?.cancel()
+        if imageLoadSucceeded { return }
+        if imageTask != nil { return }
+
         skeletonLoading.isHidden = false
         showFullScreenSkeletonIfNeeded()
-        task = Task {
-            guard let url = URL(string: urlString) else {
-                await MainActor.run { hideFullScreenSkeleton() }
-                return
-            }
-            do {
-                let img = try await PhotoImageCache.shared.image(for: url)
-                await MainActor.run {
-                    hideFullScreenSkeleton()
-                    zoomShell.setImage(img)
+        guard let url = URL(string: urlString) else {
+            hideFullScreenSkeleton()
+            return
+        }
+        imageTask = ImagePipeline.shared.loadImage(with: ImageRequest(url: url)) { [weak self] result in
+            guard let self else { return }
+            Task { @MainActor in
+                self.imageTask = nil
+                self.hideFullScreenSkeleton()
+                if case .success(let response) = result {
+                    self.imageLoadSucceeded = true
+                    self.zoomShell.setImage(response.image)
                 }
-            } catch {
-                await MainActor.run { hideFullScreenSkeleton() }
             }
         }
     }

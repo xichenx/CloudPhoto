@@ -28,6 +28,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import com.xichen.cloudphoto.R
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -50,16 +51,12 @@ fun LoginScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     
-    var account by remember { mutableStateOf("") } // 邮箱或手机号
+    var account by remember { mutableStateOf("") } // 登录邮箱
     var password by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var passwordVisible by remember { mutableStateOf(false) }
     var accountError by remember { mutableStateOf<String?>(null) }
     var passwordError by remember { mutableStateOf<String?>(null) }
-    
-    // 判断是邮箱还是手机号
-    val isEmail = account.contains("@")
-    val accountIcon = if (isEmail) Icons.Default.Email else Icons.Default.Phone
     
     // 监听ViewModel的错误消息和登录状态
     val authError by viewModel?.authError?.collectAsState() ?: remember { mutableStateOf(null) }
@@ -181,18 +178,21 @@ fun LoginScreen(
                         .padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(18.dp)
                 ) {
-                    // 账号输入（邮箱或手机号）
+                    // 邮箱登录
                     ModernAuthTextField(
                         value = account,
                         onValueChange = { 
                             account = it
                             accountError = null
                         },
-                        label = "邮箱或手机号",
-                        leadingIcon = accountIcon,
+                        label = "邮箱",
+                        leadingIcon = Icons.Default.Email,
                         isError = accountError != null,
                         errorMessage = accountError,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            imeAction = ImeAction.Next
+                        ),
                         keyboardActions = KeyboardActions(
                             onNext = { focusManager.moveFocus(FocusDirection.Down) }
                         )
@@ -254,15 +254,12 @@ fun LoginScreen(
                             var hasError = false
                             
                             if (account.isBlank()) {
-                                accountError = "请输入邮箱或手机号"
+                                accountError = "请输入邮箱"
                                 hasError = true
                             } else {
-                                // 验证邮箱或手机号格式
                                 val emailPattern = android.util.Patterns.EMAIL_ADDRESS
-                                val phonePattern = "^1[3-9]\\d{9}$".toRegex()
-                                
-                                if (!emailPattern.matcher(account).matches() && !phonePattern.matches(account)) {
-                                    accountError = "请输入有效的邮箱地址或11位手机号"
+                                if (!emailPattern.matcher(account.trim()).matches()) {
+                                    accountError = "请输入有效的邮箱地址"
                                     hasError = true
                                 }
                             }
@@ -277,7 +274,7 @@ fun LoginScreen(
                             isLoading = true
                             // 调用ViewModel的登录方法
                             if (viewModel != null) {
-                                viewModel.login(account, password)
+                                viewModel.login(account.trim(), password)
                             } else {
                                 scope.launch {
                                     delay(1500)

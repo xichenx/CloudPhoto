@@ -1,0 +1,46 @@
+---
+description: CloudPhoto 中 AI/开发者的跨端工作流——改哪里、按什么顺序验证
+alwaysApply: true
+---
+
+# CloudPhoto 工作流（Agent / 日常开发）
+
+## 1. 先分类变更
+
+| 类型 | 主要落点 | 备注 |
+|------|----------|------|
+| 数据模型 / DTO | `shared/.../model/` | `@Serializable`，时间用 `kotlinx.datetime` |
+| HTTP / 业务 API | `shared/.../service/` + 必要时 `NetworkClient` | 统一 `ApiResult`，见网络与错误规则 |
+| 平台能力（文件、权限、日志等） | `commonMain` `expect` → `androidMain` / `iosMain` `actual` | 避免在 UI 层重复实现同一平台逻辑 |
+| 依赖装配 | `shared/.../di/AppContainer.kt` | 新服务必须在此注册并可测试地获取 |
+| Android UI | `composeApp/...` | Screen、导航、`AppViewModel` 状态桥接 |
+| iOS UI | `iosApp/iosApp/...` | SwiftUI、`AppViewModel`，与 Shared 类型对齐 |
+
+默认顺序：**shared（模型 → 服务 → DI）→ 双端 UI**。不要只在某一端写业务规则。
+
+## 2. 跨端功能最小闭环
+
+1. **shared**：模型 + `*Service` +（如需）`ApiResult` / `ErrorHandler` 路径一致。
+2. **AppContainer**：构造并暴露新依赖；禁止在 Composable / SwiftUI View 里 `HttpClient()` 临时 new。
+3. **Android**：`AppViewModel` 或专用 VM 调用 shared；Compose 只展示状态与触发 intent。
+4. **iOS**：`AppViewModel`（或等价层）调用 shared；SwiftUI 保持相同用户可见行为与错误提示风格。
+5. **设计系统**：颜色、间距、圆角等与 `12-ui-design-system.mdc` 对齐，双端视觉一致。
+
+## 3. 改完如何验证（按成本从低到高）
+
+- **仅 Kotlin shared**：`./gradlew :shared:compileKotlinIosSimulatorArm64`（或 `compileKotlinIosArm64`）+ `./gradlew :shared:compileDebugKotlinAndroid`（或等价 Android 编译任务）。
+- **Android 整包**：`./gradlew :composeApp:assembleDebug`（或 IDE 同步后构建）。
+- **iOS**：先确保框架能链出，再 Xcode Run；细节与排错见 `13-ios-kmp-run.mdc`。
+
+修改了导出到 Swift 的 API 后，必须重新 link/编译 Kotlin 框架后再编 iOS。
+
+## 4. 与专项规则的关系
+
+- 结构与大纲：`01-project-structure.mdc`、`ARCHITECTURE.md`
+- KMP / expect-actual：`02-kotlin-multiplatform.mdc`
+- 网络与服务：`03-network-layer.mdc`、`06-dependency-injection.mdc`、`07-error-handling.mdc`
+- 平台 UI：`04-android-compose.mdc`、`11-ios-swiftui.mdc`
+- iOS 构建：`13-ios-kmp-run.mdc`
+
+详细分步清单与模板：项目 Skill **cloudphoto-cross-platform-feature**（`.cursor/skills/cloudphoto-cross-platform-feature/SKILL.md`）。  
+单域轻量 Skill：**cloudphoto-android-only**、**cloudphoto-ios-only**、**cloudphoto-shared-only**（同目录 `.cursor/skills/`）。

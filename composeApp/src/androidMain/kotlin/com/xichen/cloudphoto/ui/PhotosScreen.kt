@@ -5,7 +5,6 @@ import android.content.Context
 import android.graphics.BitmapFactory
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -29,7 +28,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -43,7 +41,11 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.xichen.cloudphoto.AppViewModel
 import com.xichen.cloudphoto.model.Photo
-import com.xichen.cloudphoto.cache.PhotoImageCache
+import coil.compose.AsyncImagePainter
+import coil.compose.SubcomposeAsyncImage
+import coil.compose.SubcomposeAsyncImageContent
+import coil.request.ImageRequest
+import coil.size.Size
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -214,9 +216,7 @@ fun ModernPhotoItem(
     viewModel: AppViewModel,
     onClick: () -> Unit = {}
 ) {
-    var imageBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
-
+    val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val gridMaxSidePx = remember(configuration.screenWidthDp, density.density) {
@@ -225,18 +225,14 @@ fun ModernPhotoItem(
     val imageUrl = remember(photo.id, photo.thumbnailUrl, photo.url) {
         photo.thumbnailUrl?.takeIf { it.isNotBlank() } ?: photo.url
     }
-
-    LaunchedEffect(imageUrl, gridMaxSidePx) {
-        try {
-            isLoading = true
-            imageBitmap = PhotoImageCache.getBitmap(imageUrl, gridMaxSidePx)
-            isLoading = false
-        } catch (e: Exception) {
-            isLoading = false
-            e.printStackTrace()
-        }
+    val request = remember(imageUrl, gridMaxSidePx) {
+        ImageRequest.Builder(context)
+            .data(imageUrl)
+            .size(Size(gridMaxSidePx, gridMaxSidePx))
+            .crossfade(200)
+            .build()
     }
-    
+
     // Material 3 风格的照片卡片 - 无边框，圆角更小，参考 Google Photos
     Surface(
         modifier = Modifier
@@ -250,30 +246,34 @@ fun ModernPhotoItem(
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-            if (isLoading) {
-                ShimmerPlaceholder(modifier = Modifier.fillMaxSize())
-            } else {
-                imageBitmap?.let { bitmap ->
-                    Image(
-                        bitmap = bitmap.asImageBitmap(),
-                        contentDescription = photo.name,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } ?: run {
-                    // 加载失败
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.BrokenImage,
-                            contentDescription = null,
-                            modifier = Modifier.size(32.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        )
+            SubcomposeAsyncImage(
+                model = request,
+                contentDescription = photo.name,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            ) {
+                when (painter.state) {
+                    AsyncImagePainter.State.Empty,
+                    is AsyncImagePainter.State.Loading -> {
+                        ShimmerPlaceholder(modifier = Modifier.fillMaxSize())
+                    }
+                    is AsyncImagePainter.State.Error -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.BrokenImage,
+                                contentDescription = null,
+                                modifier = Modifier.size(32.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
+                    is AsyncImagePainter.State.Success -> {
+                        SubcomposeAsyncImageContent()
                     }
                 }
             }

@@ -18,8 +18,6 @@ struct LoginView: View {
         case account, password
     }
     
-    private var isEmail: Bool { account.contains("@") }
-    
     var body: some View {
         ZStack {
             // 渐变背景
@@ -68,12 +66,12 @@ struct LoginView: View {
                     // 表单卡片
                     VStack(alignment: .leading, spacing: 18) {
                         AuthTextField(
-                            label: "邮箱或手机号",
+                            label: "邮箱",
                             text: $account,
                             error: $accountError,
-                            icon: isEmail ? "envelope" : "phone",
-                            keyboardType: isEmail ? .emailAddress : .phonePad,
-                            textContentType: .username,
+                            icon: "envelope",
+                            keyboardType: .emailAddress,
+                            textContentType: .emailAddress,
                             submitLabel: .next,
                             onSubmit: { focusedField = .password }
                         )
@@ -202,22 +200,15 @@ struct LoginView: View {
         focusedField = nil
         
         var hasError = false
-        if account.trimmingCharacters(in: .whitespaces).isEmpty {
-            accountError = "请输入邮箱或手机号"
+        let trimmedAccount = account.trimmingCharacters(in: .whitespaces)
+        if trimmedAccount.isEmpty {
+            accountError = "请输入邮箱"
             hasError = true
         } else {
-            if isEmail {
-                let emailPredicate = NSPredicate(format: "SELF MATCHES %@", "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}")
-                if !emailPredicate.evaluate(with: account) {
-                    accountError = "请输入有效的邮箱地址或11位手机号"
-                    hasError = true
-                }
-            } else {
-                let phonePredicate = NSPredicate(format: "SELF MATCHES %@", "^1[3-9]\\d{9}$")
-                if !phonePredicate.evaluate(with: account) {
-                    accountError = "请输入有效的邮箱地址或11位手机号"
-                    hasError = true
-                }
+            let emailPredicate = NSPredicate(format: "SELF MATCHES %@", "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}")
+            if !emailPredicate.evaluate(with: trimmedAccount) {
+                accountError = "请输入有效的邮箱地址"
+                hasError = true
             }
         }
         if password.isEmpty {
@@ -227,6 +218,6 @@ struct LoginView: View {
         if hasError { return }
         
         isLoading = true
-        viewModel.login(account: account.trimmingCharacters(in: .whitespaces), password: password)
+        viewModel.login(account: trimmedAccount, password: password)
     }
 }

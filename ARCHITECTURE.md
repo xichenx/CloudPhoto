@@ -261,10 +261,13 @@ class MyClass {
 
 ### 6.2 特性
 
-- ✅ 统一的日志接口
-- ✅ 平台特定实现（Android Log / iOS NSLog）
-- ✅ 支持异常日志
-- ✅ 类型安全的便捷方法
+- ✅ 统一入口 `Log`（底层为 [Napier](https://github.com/AAkira/Napier) + 自定义 `Antilog`）
+- ✅ 平台控制台（Android Logcat / iOS NSLog）
+- ✅ 支持异常堆栈随条目录入远程队列（经 [LogSanitizer](shared/src/commonMain/kotlin/com/xichen/cloudphoto/core/logger/LogSanitizer.kt) 脱敏）
+- ✅ 本地 NDJSON 文件队列 + [RemoteLogUploadScheduler](shared/src/commonMain/kotlin/com/xichen/cloudphoto/core/logger/RemoteLogUploadScheduler.kt) 定时/手动批量上传（Ktor）
+- ✅ 类型安全的便捷方法（`logD` / `logE` 等）
+
+初始化：在应用启动早期调用 `DiagnosticLogging.install(context)`，并由 `AppContainer.startDiagnosticLogUpload()` 启动上传调度（详见 `README_API.md` 诊断日志一节）。
 
 ## 7. 图片加载框架
 

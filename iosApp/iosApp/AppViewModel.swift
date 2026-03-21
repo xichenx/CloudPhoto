@@ -24,7 +24,9 @@ class AppViewModel: ObservableObject {
     private let tokenManager: TokenManager
     
     init() {
+        DiagnosticLogging.shared.install(rootContext: nil)
         let container = AppContainerHolder.shared.getContainer(context: nil)
+        container.startDiagnosticLogUpload()
         self.photoService = container.photoService
         self.configService = container.configService
         self.albumService = container.albumService
@@ -133,7 +135,7 @@ class AppViewModel: ObservableObject {
     
     // MARK: - 认证
     
-    /// 登录（支持邮箱或手机号）
+    /// 登录（邮箱 + 密码）
     func login(account: String, password: String) {
         authError = nil
         Task {
@@ -158,8 +160,8 @@ class AppViewModel: ObservableObject {
         }
     }
     
-    /// 注册
-    func register(username: String, email: String, password: String, emailCode: String, phone: String? = nil) {
+    /// 注册（邮箱 + 邮箱验证码）
+    func register(username: String, email: String, password: String, emailCode: String) {
         authError = nil
         Task {
             do {
@@ -167,7 +169,6 @@ class AppViewModel: ObservableObject {
                     username: username,
                     password: password,
                     email: email,
-                    phone: phone,
                     emailCode: emailCode
                 )
                 let outcome = try await authService.registerOutcome(request: request)

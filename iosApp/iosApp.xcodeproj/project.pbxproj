@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		B5E1A2C3D4E5F60718293A4B /* SkeletonView in Frameworks */ = {isa = PBXBuildFile; productRef = B5E1A2C3D4E5F60718293A4C /* SkeletonView */; };
+		C6E2A2C3D4E5F60718293A5A /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = C6E2A2C3D4E5F60718293A5D /* Nuke */; };
+		C6E2A2C3D4E5F60718293A5B /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = C6E2A2C3D4E5F60718293A5E /* NukeUI */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -46,6 +48,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				B5E1A2C3D4E5F60718293A4B /* SkeletonView in Frameworks */,
+				C6E2A2C3D4E5F60718293A5A /* Nuke in Frameworks */,
+				C6E2A2C3D4E5F60718293A5B /* NukeUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -91,6 +95,8 @@
 			name = iosApp;
 			packageProductDependencies = (
 				B5E1A2C3D4E5F60718293A4C /* SkeletonView */,
+				C6E2A2C3D4E5F60718293A5D /* Nuke */,
+				C6E2A2C3D4E5F60718293A5E /* NukeUI */,
 			);
 			productName = iosApp;
 			productReference = F3E52FCDC3A47DAA8723AB98 /* CloudPhoto.app */;
@@ -122,6 +128,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				B5E1A2C3D4E5F60718293A4D /* XCRemoteSwiftPackageReference "SkeletonView" */,
+				C6E2A2C3D4E5F60718293A5C /* XCRemoteSwiftPackageReference "Nuke" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5973DA130E37ED8066608175 /* Products */;
@@ -425,6 +432,14 @@
 				minimumVersion = 1.31.0;
 			};
 		};
+		C6E2A2C3D4E5F60718293A5C /* XCRemoteSwiftPackageReference "Nuke" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kean/Nuke.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.8.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -432,6 +447,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = B5E1A2C3D4E5F60718293A4D /* XCRemoteSwiftPackageReference "SkeletonView" */;
 			productName = SkeletonView;
+		};
+		C6E2A2C3D4E5F60718293A5D /* Nuke */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C6E2A2C3D4E5F60718293A5C /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = Nuke;
+		};
+		C6E2A2C3D4E5F60718293A5E /* NukeUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C6E2A2C3D4E5F60718293A5C /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = NukeUI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

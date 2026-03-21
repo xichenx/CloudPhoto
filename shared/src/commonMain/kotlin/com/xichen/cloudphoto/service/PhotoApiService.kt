@@ -1,7 +1,5 @@
 package com.xichen.cloudphoto.service
 
-import com.xichen.cloudphoto.core.auth.TokenManager
-import com.xichen.cloudphoto.core.config.ApiConfig
 import com.xichen.cloudphoto.core.network.*
 import com.xichen.cloudphoto.model.*
 import io.ktor.client.HttpClient
@@ -13,17 +11,11 @@ import io.ktor.utils.io.*
 import kotlinx.serialization.Serializable
 
 /**
- * 照片 API 服务（调用后端 API）
+ * 照片 API 服务（调用后端 API；[HttpClient] 需已在 defaultRequest 中配置 Token）。
  */
 class PhotoApiService(
-    private val tokenManager: TokenManager
+    private val httpClient: HttpClient
 ) {
-    private val httpClient: HttpClient = NetworkClientFactory.create(
-        baseUrl = ApiConfig.AUTH_BASE_URL,
-        timeout = 60_000L, // 上传需要更长时间
-        enableLogging = true,
-        tokenManager = tokenManager
-    )
     
     /**
      * 获取照片列表
@@ -274,9 +266,6 @@ class PhotoApiService(
         }
     }
     
-    fun close() {
-        httpClient.close()
-    }
 }
 
 /**

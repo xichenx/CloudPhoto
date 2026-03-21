@@ -1,7 +1,6 @@
 package com.xichen.cloudphoto.service
 
 import com.xichen.cloudphoto.core.network.ApiResult
-import com.xichen.cloudphoto.core.network.NetworkClientFactory
 import com.xichen.cloudphoto.core.network.post
 import com.xichen.cloudphoto.core.network.put
 import com.xichen.cloudphoto.model.*
@@ -11,16 +10,11 @@ import io.ktor.client.request.setBody
 import io.ktor.http.HttpHeaders
 
 /**
- * 认证服务
+ * 认证服务（使用容器注入的 [HttpClient]，**不得**在 defaultRequest 中自动附带 Token，避免污染登录/注册请求）。
  */
 class AuthService(
-    private val baseUrl: String
+    private val httpClient: HttpClient
 ) {
-    private val httpClient: HttpClient = NetworkClientFactory.create(
-        baseUrl = baseUrl,
-        timeout = 30_000L,
-        enableLogging = true
-    )
     
     /**
      * 发送邮箱验证码
@@ -169,13 +163,6 @@ class AuthService(
         }
     }
     
-    /**
-     * 关闭HTTP客户端
-     */
-    fun close() {
-        httpClient.close()
-    }
-
     /**
      * 登录并返回简单结果，便于 Swift 等平台处理（无需处理 ApiResult 密封类）
      * @return Pair: first 为 LoginResponse（成功时非 null），second 为错误信息（失败时非 null）

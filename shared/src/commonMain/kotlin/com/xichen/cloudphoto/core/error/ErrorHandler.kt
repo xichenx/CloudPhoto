@@ -1,6 +1,7 @@
 package com.xichen.cloudphoto.core.error
 
 import com.xichen.cloudphoto.core.logger.Log
+import com.xichen.cloudphoto.core.network.HttpResponseException
 
 /**
  * 应用错误类型
@@ -40,6 +41,14 @@ object ErrorHandler {
         Log.e("ErrorHandler", "Error occurred", error)
         
         return when {
+            error is HttpResponseException -> {
+                when (error.status.value) {
+                    401, 403 -> AppError.NetworkError("登录已失效，请重新登录", error)
+                    404 -> AppError.NetworkError("请求的资源不存在", error)
+                    in 500..599 -> AppError.NetworkError("服务暂时不可用，请稍后重试", error)
+                    else -> AppError.NetworkError(error.message, error)
+                }
+            }
             error.message?.contains("network", ignoreCase = true) == true ||
             error.message?.contains("connection", ignoreCase = true) == true ||
             error.message?.contains("timeout", ignoreCase = true) == true ||
