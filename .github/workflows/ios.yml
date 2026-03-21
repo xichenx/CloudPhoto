@@ -52,6 +52,8 @@ jobs:
       - name: Build Shared.framework (iOS Simulator / Debug)
         run: ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64 -PXCODE_CONFIGURATION=DEBUG --no-daemon --stacktrace
 
+      # Gradle only produces iosSimulatorArm64 Shared.framework. A "generic" simulator
+      # destination also compiles x86_64, which cannot link that framework — exclude i386/x86_64.
       - name: Build iosApp with Xcode
         env:
           OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED: "YES"
@@ -64,6 +66,9 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "${GITHUB_WORKSPACE}/ios-derived" \
             -clonedSourcePackagesDirPath "${GITHUB_WORKSPACE}/.spm-cache" \
+            ARCHS=arm64 \
+            EXCLUDED_ARCHS=x86_64 \
+            ONLY_ACTIVE_ARCH=YES \
             CODE_SIGNING_ALLOWED=NO \
             DEVELOPMENT_TEAM= \
             build
