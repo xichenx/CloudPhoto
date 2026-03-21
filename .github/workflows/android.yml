@@ -5,8 +5,11 @@ name: Android
 on:
   workflow_dispatch:
 
+# `actions: write` is required for actions/upload-artifact. A permissions block denies
+# anything not listed, so contents:read alone prevents uploads.
 permissions:
   contents: read
+  actions: write
 
 concurrency:
   group: android-${{ github.workflow }}-${{ github.ref }}
