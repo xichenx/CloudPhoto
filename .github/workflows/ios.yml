@@ -22,7 +22,7 @@ concurrency:
 jobs:
   build:
     name: Kotlin framework + Xcode
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
 
