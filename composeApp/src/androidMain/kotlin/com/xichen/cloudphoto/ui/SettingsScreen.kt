@@ -1,5 +1,7 @@
 package com.xichen.cloudphoto.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -15,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
@@ -29,6 +32,7 @@ import com.xichen.cloudphoto.AppViewModel
 import com.xichen.cloudphoto.model.StorageConfig
 import com.xichen.cloudphoto.navigation.Screen
 import com.xichen.cloudphoto.model.StorageProvider
+import com.xichen.cloudphoto.R
 import kotlinx.datetime.Clock
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,7 +42,8 @@ fun SettingsScreen(
     navController: NavHostController
 ) {
     val currentUser by viewModel.currentUser.collectAsState()
-    
+    val context = LocalContext.current
+
     var showLogoutDialog by remember { mutableStateOf(false) }
     
     Scaffold(
@@ -138,7 +143,10 @@ fun SettingsScreen(
                 ModernSettingsCell(
                     title = "帮助与反馈",
                     icon = Icons.Default.Help,
-                    onClick = { /* TODO: 打开帮助页面 */ },
+                    onClick = {
+                        val url = context.getString(R.string.help_tutorial_url)
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                    },
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
                 )
             }
