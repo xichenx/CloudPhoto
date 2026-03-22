@@ -270,10 +270,11 @@ fun LoginScreen(
                             }
                             
                             if (hasError) return@Button
-                            
+
                             isLoading = true
                             // 调用ViewModel的登录方法
                             if (viewModel != null) {
+                                viewModel.trackLoginSubmit()
                                 viewModel.login(account.trim(), password)
                             } else {
                                 scope.launch {
@@ -382,7 +383,10 @@ fun LoginScreen(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             TextButton(
-                                onClick = onNavigateToRegister,
+                                onClick = {
+                                    viewModel?.trackLoginGoRegister()
+                                    onNavigateToRegister()
+                                },
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 Text(

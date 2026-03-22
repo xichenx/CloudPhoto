@@ -14,15 +14,25 @@ import com.xichen.cloudphoto.service.AuthService
 import com.xichen.cloudphoto.service.ConfigApiService
 import com.xichen.cloudphoto.service.ConfigService
 import com.xichen.cloudphoto.core.logger.RemoteLogUploadScheduler
+import com.xichen.cloudphoto.analytics.AnalyticsDeviceMeta
+import com.xichen.cloudphoto.analytics.AnalyticsTracker
+import com.xichen.cloudphoto.analytics.analyticsDeviceMeta
+import com.xichen.cloudphoto.service.AppEventApiService
 import com.xichen.cloudphoto.service.PhotoApiService
 import com.xichen.cloudphoto.service.PhotoService
 import io.ktor.client.HttpClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 
 /**
  * 应用依赖容器
  * 统一管理所有依赖的创建和生命周期
  */
 class AppContainer(context: Any? = null) {
+
+    private val appContext: Any? = context
     // Token Manager
     val tokenManager: TokenManager by lazy { 
         TokenManager(context)
@@ -60,6 +70,21 @@ class AppContainer(context: Any? = null) {
             timeout = NetworkConfig.API_TIMEOUT,
             enableLogging = true,
             tokenManager = tokenManager
+        )
+    }
+
+    private val analyticsJob: Job = SupervisorJob()
+
+    private val analyticsScope: CoroutineScope = CoroutineScope(analyticsJob + Dispatchers.Default)
+
+    /** 埋点（仅在有 Token 时上报） */
+    val analyticsTracker: AnalyticsTracker by lazy {
+        val meta: AnalyticsDeviceMeta = analyticsDeviceMeta(appContext)
+        AnalyticsTracker(
+            api = AppEventApiService(authorizedApiHttpClient.value),
+            tokenManager = tokenManager,
+            deviceMeta = meta,
+            scope = analyticsScope
         )
     }
     
@@ -109,6 +134,7 @@ class AppContainer(context: Any? = null) {
      */
     fun dispose() {
         RemoteLogUploadScheduler.stop()
+        analyticsJob.cancel()
         httpClient.close()
         if (authApiHttpClient.isInitialized()) {
             authApiHttpClient.value.close()

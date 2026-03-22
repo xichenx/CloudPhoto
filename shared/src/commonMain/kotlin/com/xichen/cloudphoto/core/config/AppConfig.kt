@@ -22,6 +22,12 @@ object ApiConfig {
      * 服务端建议：鉴权可选；落库 MySQL/Mongo/ClickHouse 后供后台检索。
      */
     const val CLIENT_LOG_BATCH_PATH: String = "/api/client-logs/batch"
+
+    /** 单条埋点 */
+    const val APP_EVENTS_PATH: String = "/api/events"
+
+    /** 批量埋点（单次最多 100 条） */
+    const val APP_EVENTS_BATCH_PATH: String = "/api/events/batch"
 }
 
 /**

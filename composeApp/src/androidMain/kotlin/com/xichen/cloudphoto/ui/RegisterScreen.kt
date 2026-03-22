@@ -491,9 +491,10 @@ fun RegisterScreen(
                             }
                             
                             if (hasError) return@Button
-                            
+
                             isLoading = true
                             if (viewModel != null) {
+                                viewModel.trackRegisterSubmit()
                                 viewModel.register(name, email, password, emailCode)
                             } else {
                                 scope.launch {
@@ -544,7 +545,10 @@ fun RegisterScreen(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         TextButton(
-                            onClick = onNavigateToLogin,
+                            onClick = {
+                                viewModel?.trackRegisterGoLogin()
+                                onNavigateToLogin()
+                            },
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(

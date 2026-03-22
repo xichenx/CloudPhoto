@@ -5,6 +5,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.xichen.cloudphoto.model.Photo
 import com.xichen.cloudphoto.model.StorageConfig
+import com.xichen.cloudphoto.analytics.AnalyticsEventIds
+import com.xichen.cloudphoto.analytics.AnalyticsPages
+import com.xichen.cloudphoto.analytics.AnalyticsSession
 import com.xichen.cloudphoto.core.di.AppContainerHolder
 import com.xichen.cloudphoto.core.error.ErrorHandler
 import com.xichen.cloudphoto.core.theme.ThemeMode
@@ -19,6 +22,8 @@ import com.xichen.cloudphoto.service.PhotoService
 import com.xichen.cloudphoto.core.auth.TokenManager
 import com.xichen.cloudphoto.core.network.*
 import com.xichen.cloudphoto.model.*
+import com.xichen.cloudphoto.navigation.Screen
+import com.xichen.cloudphoto.navigation.toAnalyticsPage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -105,6 +110,88 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private fun checkLoginStatus() {
         _isLoggedIn.value = tokenManager.isLoggedIn()
     }
+
+    private fun notifyAuthSessionStarted() {
+        container.analyticsTracker.flushPending()
+        AnalyticsSession.refresh()
+    }
+
+    fun trackAnalyticsPageView(page: String, fromPage: String?) {
+        container.analyticsTracker.pageView(page, fromPage)
+    }
+
+    fun trackBottomNavClick(targetRoute: String, fromRoute: String) {
+        val eventId = when (targetRoute) {
+            Screen.Photos.route -> AnalyticsEventIds.BOTTOM_NAV_PHOTOS
+            Screen.Albums.route -> AnalyticsEventIds.BOTTOM_NAV_ALBUMS
+            Screen.Camera.route -> AnalyticsEventIds.BOTTOM_NAV_CAMERA
+            Screen.Storage.route -> AnalyticsEventIds.BOTTOM_NAV_STORAGE
+            Screen.Settings.route -> AnalyticsEventIds.BOTTOM_NAV_SETTINGS
+            else -> return
+        }
+        container.analyticsTracker.click(
+            page = targetRoute.toAnalyticsPage(),
+            elementId = eventId,
+            elementType = "tab",
+            fromPage = fromRoute.toAnalyticsPage()
+        )
+    }
+
+    fun trackClick(
+        page: String,
+        eventId: String,
+        elementType: String,
+        elementName: String? = null,
+        fromPage: String? = null,
+        position: Int? = null,
+        extra: String? = null
+    ) {
+        container.analyticsTracker.click(
+            page = page,
+            elementId = eventId,
+            elementType = elementType,
+            elementName = elementName,
+            fromPage = fromPage,
+            position = position,
+            extra = extra
+        )
+    }
+
+    fun trackLoginSubmit() {
+        container.analyticsTracker.click(
+            page = AnalyticsPages.LOGIN,
+            elementId = AnalyticsEventIds.LOGIN_SUBMIT,
+            elementType = "button",
+            elementName = "登录"
+        )
+    }
+
+    fun trackLoginGoRegister() {
+        container.analyticsTracker.click(
+            page = AnalyticsPages.LOGIN,
+            elementId = AnalyticsEventIds.LOGIN_GO_REGISTER,
+            elementType = "button",
+            elementName = "立即注册"
+        )
+    }
+
+    fun trackRegisterSubmit() {
+        container.analyticsTracker.click(
+            page = AnalyticsPages.REGISTER,
+            elementId = AnalyticsEventIds.REGISTER_SUBMIT,
+            elementType = "button",
+            elementName = "注册"
+        )
+    }
+
+    fun trackRegisterGoLogin() {
+        container.analyticsTracker.click(
+            page = AnalyticsPages.REGISTER,
+            elementId = AnalyticsEventIds.REGISTER_GO_LOGIN,
+            elementType = "button",
+            elementName = "去登录"
+        )
+    }
     
     /**
      * 发送邮箱验证码
@@ -137,6 +224,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 
                 // 先更新登录状态，确保界面能立即响应
                 _isLoggedIn.value = true
+                notifyAuthSessionStarted()
                 Log.i("AppViewModel", "Login successful: ${response.user.username}, isLoggedIn set to true")
                 
                 // 保存登录状态到SharedPreferences（兼容旧代码）
@@ -255,11 +343,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             // 设置用户信息和登录状态
             _currentUser.value = mockUser
             _isLoggedIn.value = true
-            
+            notifyAuthSessionStarted()
+
             // 保存登录状态到SharedPreferences
             val prefs = getApplication<Application>().getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
             prefs.edit().putBoolean("is_logged_in", true).apply()
-            
+
             Log.i("AppViewModel", "Mock login successful: ${mockUser.username}")
             
             // 加载数据
@@ -282,6 +371,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             
             // 清除Token
             tokenManager.clearTokens()
+            container.analyticsTracker.clearPending()
+            AnalyticsSession.refresh()
             _isLoggedIn.value = false
             _currentUser.value = null
             

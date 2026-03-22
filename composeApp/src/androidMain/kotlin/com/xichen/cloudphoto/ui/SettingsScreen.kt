@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.xichen.cloudphoto.AppViewModel
+import com.xichen.cloudphoto.analytics.AnalyticsEventIds
+import com.xichen.cloudphoto.analytics.AnalyticsPages
 import com.xichen.cloudphoto.model.StorageConfig
 import com.xichen.cloudphoto.navigation.Screen
 import com.xichen.cloudphoto.model.StorageProvider
@@ -86,7 +88,15 @@ fun SettingsScreen(
                 ModernSettingsCell(
                     title = "个人资料",
                     icon = Icons.Default.Person,
-                    onClick = { navController.navigate(Screen.Profile.route) },
+                    onClick = {
+                        viewModel.trackClick(
+                            page = AnalyticsPages.SETTINGS,
+                            eventId = AnalyticsEventIds.SETTINGS_PROFILE,
+                            elementType = "list_item",
+                            elementName = "个人资料"
+                        )
+                        navController.navigate(Screen.Profile.route)
+                    },
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
                 )
             }
@@ -95,7 +105,15 @@ fun SettingsScreen(
                 ModernSettingsCell(
                     title = "账户安全",
                     icon = Icons.Default.Security,
-                    onClick = { navController.navigate(Screen.AccountSecurity.route) },
+                    onClick = {
+                        viewModel.trackClick(
+                            page = AnalyticsPages.SETTINGS,
+                            eventId = AnalyticsEventIds.SETTINGS_ACCOUNT_SECURITY,
+                            elementType = "list_item",
+                            elementName = "账户安全"
+                        )
+                        navController.navigate(Screen.AccountSecurity.route)
+                    },
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
                 )
             }
@@ -112,7 +130,15 @@ fun SettingsScreen(
                 ModernSettingsCell(
                     title = "主题设置",
                     icon = Icons.Default.Palette,
-                    onClick = { navController.navigate(Screen.ThemeSettings.route) },
+                    onClick = {
+                        viewModel.trackClick(
+                            page = AnalyticsPages.SETTINGS,
+                            eventId = AnalyticsEventIds.SETTINGS_THEME,
+                            elementType = "list_item",
+                            elementName = "主题设置"
+                        )
+                        navController.navigate(Screen.ThemeSettings.route)
+                    },
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
                 )
             }
@@ -188,6 +214,12 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
+                        viewModel.trackClick(
+                            page = AnalyticsPages.SETTINGS,
+                            eventId = AnalyticsEventIds.SETTINGS_LOGOUT,
+                            elementType = "button",
+                            elementName = "确认退出"
+                        )
                         viewModel.logout()
                         showLogoutDialog = false
                     }

@@ -40,6 +40,8 @@ import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.xichen.cloudphoto.AppViewModel
+import com.xichen.cloudphoto.analytics.AnalyticsEventIds
+import com.xichen.cloudphoto.analytics.AnalyticsPages
 import com.xichen.cloudphoto.model.Photo
 import coil.compose.AsyncImagePainter
 import coil.compose.SubcomposeAsyncImage
@@ -61,7 +63,15 @@ fun PhotosScreen(viewModel: AppViewModel) {
         PhotoFullscreenViewer(
             photos = photos,
             initialIndex = index,
-            onDismiss = { fullscreenStartIndex = null }
+            onDismiss = {
+                viewModel.trackClick(
+                    page = AnalyticsPages.PHOTO_TIMELINE,
+                    eventId = AnalyticsEventIds.PHOTO_FULLSCREEN_CLOSE,
+                    elementType = "button",
+                    elementName = "关闭全屏"
+                )
+                fullscreenStartIndex = null
+            }
         )
     }
 
@@ -81,7 +91,14 @@ fun PhotosScreen(viewModel: AppViewModel) {
                     containerColor = Color.Transparent
                 ),
                 actions = {
-                    IconButton(onClick = { /* TODO: 搜索功能 */ }) {
+                    IconButton(onClick = {
+                        viewModel.trackClick(
+                            page = AnalyticsPages.PHOTO_TIMELINE,
+                            eventId = AnalyticsEventIds.PHOTO_SEARCH_TAP,
+                            elementType = "button",
+                            elementName = "搜索"
+                        )
+                    }) {
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "搜索"
@@ -120,7 +137,17 @@ fun PhotosScreen(viewModel: AppViewModel) {
                     ModernPhotoItem(
                         photo = photo,
                         viewModel = viewModel,
-                        onClick = { fullscreenStartIndex = index }
+                        onClick = {
+                            viewModel.trackClick(
+                                page = AnalyticsPages.PHOTO_TIMELINE,
+                                eventId = AnalyticsEventIds.PHOTO_GRID_ITEM,
+                                elementType = "image",
+                                elementName = photo.name,
+                                position = index + 1,
+                                extra = """{"photoId":"${photo.id}"}"""
+                            )
+                            fullscreenStartIndex = index
+                        }
                     )
                 }
             }

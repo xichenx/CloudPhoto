@@ -24,6 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.xichen.cloudphoto.AppViewModel
+import com.xichen.cloudphoto.analytics.AnalyticsEventIds
+import com.xichen.cloudphoto.analytics.AnalyticsPages
 import com.xichen.cloudphoto.model.StorageConfig
 import com.xichen.cloudphoto.navigation.Screen
 import com.xichen.cloudphoto.model.StorageProvider
@@ -57,7 +59,15 @@ fun StorageScreen(
                     containerColor = Color.Transparent
                 ),
                 actions = {
-                    IconButton(onClick = { navController.navigate(Screen.AddStorageConfig.route) }) {
+                    IconButton(onClick = {
+                        viewModel.trackClick(
+                            page = AnalyticsPages.STORAGE,
+                            eventId = AnalyticsEventIds.STORAGE_ADD_CONFIG,
+                            elementType = "button",
+                            elementName = "添加存储配置"
+                        )
+                        navController.navigate(Screen.AddStorageConfig.route)
+                    }) {
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = "添加存储配置"
@@ -84,7 +94,15 @@ fun StorageScreen(
             item {
                 StorageTutorialEntryCard(
                     modifier = Modifier.fillMaxWidth(),
-                    onClick = { navController.navigate(Screen.StorageTutorial.route) }
+                    onClick = {
+                        viewModel.trackClick(
+                            page = AnalyticsPages.STORAGE,
+                            eventId = AnalyticsEventIds.STORAGE_TUTORIAL,
+                            elementType = "list_item",
+                            elementName = "配置教程"
+                        )
+                        navController.navigate(Screen.StorageTutorial.route)
+                    }
                 )
             }
 
@@ -93,7 +111,15 @@ fun StorageScreen(
                 item {
                     EmptyStorageCard(
                         modifier = Modifier.fillMaxWidth(),
-                        onAddClick = { navController.navigate(Screen.AddStorageConfig.route) }
+                        onAddClick = {
+                            viewModel.trackClick(
+                                page = AnalyticsPages.STORAGE,
+                                eventId = AnalyticsEventIds.STORAGE_ADD_CONFIG,
+                                elementType = "button",
+                                elementName = "添加首个配置"
+                            )
+                            navController.navigate(Screen.AddStorageConfig.route)
+                        }
                     )
                 }
             } else {
@@ -105,6 +131,13 @@ fun StorageScreen(
                         onSetDefault = { viewModel.setDefaultConfig(config.id) },
                         onDelete = { viewModel.deleteConfig(config.id) },
                         onEdit = {
+                            viewModel.trackClick(
+                                page = AnalyticsPages.STORAGE,
+                                eventId = AnalyticsEventIds.STORAGE_EDIT_CONFIG,
+                                elementType = "button",
+                                elementName = "编辑配置",
+                                extra = """{"configId":"${config.id}"}"""
+                            )
                             navController.navigate(Screen.EditStorageConfig.createRoute(config.id))
                         },
                         modifier = Modifier.fillMaxWidth()

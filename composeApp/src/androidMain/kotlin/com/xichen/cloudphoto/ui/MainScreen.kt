@@ -6,6 +6,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,6 +23,7 @@ import com.xichen.cloudphoto.core.ResponsiveContainer
 import com.xichen.cloudphoto.core.rememberResponsiveConfig
 import com.xichen.cloudphoto.navigation.NavGraph
 import com.xichen.cloudphoto.navigation.Screen
+import com.xichen.cloudphoto.navigation.toAnalyticsPage
 
 /**
  * 底部导航栏占位高度，供各页列表的 contentPadding 使用，避免最后几项被导航栏遮挡。
@@ -37,11 +39,23 @@ fun MainScreen(
 ) {
     val responsiveConfig = rememberResponsiveConfig()
     var previousRouteBeforeCamera by remember { mutableStateOf(Screen.Photos.route) }
-    
+    val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+    var previousAnalyticsPage by remember { mutableStateOf<String?>(null) }
+
     ResponsiveContainer {
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Photos.route
-        
+
+        LaunchedEffect(currentRoute, isLoggedIn) {
+            if (!isLoggedIn) {
+                previousAnalyticsPage = null
+                return@LaunchedEffect
+            }
+            val page = currentRoute.toAnalyticsPage()
+            viewModel.trackAnalyticsPageView(page, previousAnalyticsPage)
+            previousAnalyticsPage = page
+        }
+
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             containerColor = Color.Transparent,
@@ -50,6 +64,7 @@ fun MainScreen(
                     ModernNavigationBar(
                         currentRoute = currentRoute,
                         onNavigate = { route ->
+                            viewModel.trackBottomNavClick(route, currentRoute)
                             if (route != Screen.Camera.route) {
                                 previousRouteBeforeCamera = route
                             }
