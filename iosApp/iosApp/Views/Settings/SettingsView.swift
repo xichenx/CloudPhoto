@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import Shared
 
 /**
@@ -74,7 +75,9 @@ struct SettingsView: View {
                 }
 
                 Section("其他") {
-                    NavigationLink(destination: EmptyView()) {
+                    Button {
+                        UIApplication.shared.open(AppWebLinks.helpTutorial)
+                    } label: {
                         Label("帮助与反馈", systemImage: "questionmark.circle")
                     }
                     NavigationLink(destination: EmptyView()) {

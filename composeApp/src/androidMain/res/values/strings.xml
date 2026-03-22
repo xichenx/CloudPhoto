@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">CloudPhoto</string>
+    <!-- 官网教程地址，必须包含 client=app，前端才会进入「仅教程」模式；发布前改为线上域名 -->
+    <string name="help_tutorial_url" translatable="false">https://your-site.com/tutorial?client=app</string>
 </resources>
