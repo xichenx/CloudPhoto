@@ -33,6 +33,9 @@ struct AccountSecurityView: View {
         }
         .navigationTitle("账号安全")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            viewModel.trackPageViewAccountSecurity()
+        }
     }
 }
 

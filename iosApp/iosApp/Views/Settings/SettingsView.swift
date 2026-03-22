@@ -49,25 +49,58 @@ struct SettingsView: View {
                     }
                     .padding(.vertical, AppTheme.Design.spacingXS)
 
-                    Button(role: .destructive, action: { viewModel.logout() }) {
+                    Button(role: .destructive, action: {
+                        viewModel.trackSettingsLogoutConfirm()
+                        viewModel.logout()
+                    }) {
                         Label("退出登录", systemImage: "rectangle.portrait.and.arrow.right")
                             .frame(maxWidth: .infinity)
                     }
                 }
 
                 Section("账户") {
-                    NavigationLink(value: SettingsRoute.profile) {
-                        Label("个人资料", systemImage: "person")
+                    Button {
+                        viewModel.trackSettingsProfileTap()
+                        path.append(.profile)
+                    } label: {
+                        HStack {
+                            Label("个人资料", systemImage: "person")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(AppTheme.Colors.secondaryText)
+                        }
                     }
-                    NavigationLink(value: SettingsRoute.accountSecurity) {
-                        Label("账户安全", systemImage: "lock.shield")
+                    .buttonStyle(.plain)
+                    Button {
+                        viewModel.trackSettingsAccountSecurityTap()
+                        path.append(.accountSecurity)
+                    } label: {
+                        HStack {
+                            Label("账户安全", systemImage: "lock.shield")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(AppTheme.Colors.secondaryText)
+                        }
                     }
+                    .buttonStyle(.plain)
                 }
 
                 Section("应用") {
-                    NavigationLink(value: SettingsRoute.themeSettings) {
-                        Label("主题设置", systemImage: "paintpalette")
+                    Button {
+                        viewModel.trackSettingsThemeTap()
+                        path.append(.themeSettings)
+                    } label: {
+                        HStack {
+                            Label("主题设置", systemImage: "paintpalette")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(AppTheme.Colors.secondaryText)
+                        }
                     }
+                    .buttonStyle(.plain)
                     NavigationLink(destination: EmptyView()) {
                         Label("通知设置", systemImage: "bell")
                     }
@@ -93,7 +126,7 @@ struct SettingsView: View {
                 case .changePassword:
                     ChangePasswordView(viewModel: viewModel)
                 case .themeSettings:
-                    ThemeSettingsView()
+                    ThemeSettingsView(viewModel: viewModel)
                 }
             }
         }

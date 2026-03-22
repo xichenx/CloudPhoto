@@ -93,6 +93,9 @@ struct ProfileView: View {
             }
         }
         .toast(message: $toastMessage, type: .error)
+        .onAppear {
+            viewModel.trackPageViewProfile()
+        }
     }
 }
 

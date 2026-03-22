@@ -196,6 +196,7 @@ struct RegisterView: View {
                                 .font(.system(size: AppTheme.Design.fontSizeBody))
                                 .foregroundColor(AppTheme.Colors.secondaryText)
                             Button("立即登录") {
+                                viewModel.trackRegisterGoLogin()
                                 onNavigateToLogin()
                             }
                             .font(.system(size: AppTheme.Design.fontSizeBody, weight: .bold))
@@ -310,6 +311,7 @@ struct RegisterView: View {
         if hasError { return }
         
         isLoading = true
+        viewModel.trackRegisterSubmit()
         viewModel.register(
             username: name.trimmingCharacters(in: .whitespaces),
             email: trimmedEmail,

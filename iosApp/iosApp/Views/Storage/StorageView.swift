@@ -26,7 +26,7 @@ struct StorageView: View {
                     let config = viewModel.configs.first { $0.id == configId }
                     AddConfigView(viewModel: viewModel, configToEdit: config, path: $path)
                 case .configTutorial:
-                    StorageTutorialWebView(path: $path)
+                    StorageTutorialWebView(viewModel: viewModel, path: $path)
                 }
             }
         }
@@ -44,7 +44,10 @@ struct StorageView: View {
             Text("添加存储配置以开始备份照片")
                 .font(.system(size: AppTheme.Design.fontSizeBody))
                 .foregroundColor(AppTheme.Colors.secondaryText)
-            Button(action: { path.append(.addConfig) }) {
+            Button(action: {
+                viewModel.trackStorageAddConfig(elementName: "添加首个配置")
+                path.append(.addConfig)
+            }) {
                 Text("添加配置")
                     .font(.system(size: AppTheme.Design.fontSizeHeadline, weight: .semibold))
                     .foregroundColor(.white)
@@ -53,7 +56,10 @@ struct StorageView: View {
                     .cornerRadius(AppTheme.Design.cornerRadiusMedium)
             }
             .padding(.top, AppTheme.Design.spacingM)
-            Button(action: { path.append(.configTutorial) }) {
+            Button(action: {
+                viewModel.trackStorageTutorial()
+                path.append(.configTutorial)
+            }) {
                 Label("各厂商获取配置教程", systemImage: "book.circle")
                     .font(.system(size: AppTheme.Design.fontSizeBody))
                     .foregroundColor(AppTheme.Colors.primary)
@@ -66,7 +72,10 @@ struct StorageView: View {
         .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { path.append(.addConfig) }) {
+                Button(action: {
+                    viewModel.trackStorageAddConfig(elementName: "添加存储配置")
+                    path.append(.addConfig)
+                }) {
                     Image(systemName: "plus")
                         .foregroundColor(AppTheme.Colors.primary)
                 }
@@ -77,7 +86,10 @@ struct StorageView: View {
     private var storageListContent: some View {
         List {
             Section {
-                Button(action: { path.append(.configTutorial) }) {
+                Button(action: {
+                    viewModel.trackStorageTutorial()
+                    path.append(.configTutorial)
+                }) {
                     HStack(spacing: AppTheme.Design.spacingS) {
                         Image(systemName: "book.circle.fill")
                             .font(.system(size: 22))
@@ -105,7 +117,10 @@ struct StorageView: View {
                     StorageConfigRow(
                         config: config,
                         isDefault: config.id == viewModel.defaultConfig?.id,
-                        onEdit: { path.append(.editConfig(configId: config.id)) },
+                        onEdit: {
+                            viewModel.trackStorageEditConfig(configId: config.id)
+                            path.append(.editConfig(configId: config.id))
+                        },
                         onSetDefault: { viewModel.setDefaultConfig(configId: config.id) },
                         onDelete: { viewModel.deleteConfig(configId: config.id) }
                     )
@@ -115,7 +130,10 @@ struct StorageView: View {
         .navigationTitle("存储空间")
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { path.append(.addConfig) }) {
+                Button(action: {
+                    viewModel.trackStorageAddConfig(elementName: "添加存储配置")
+                    path.append(.addConfig)
+                }) {
                     Image(systemName: "plus")
                         .foregroundColor(AppTheme.Colors.primary)
                 }

@@ -7,7 +7,7 @@ class AppViewModel: ObservableObject {
     @Published var photos: [Photo] = []
     @Published var configs: [StorageConfig] = []
     @Published var defaultConfig: StorageConfig? = nil
-    
+
     /// 登录状态，未登录时显示登录/注册界面
     @Published var isLoggedIn: Bool = false
     /// 当前用户信息（登录后有效）
@@ -16,34 +16,37 @@ class AppViewModel: ObservableObject {
     @Published var authError: String? = nil
     /// 修改密码成功（单次，UI 消费后调用 clearChangePasswordSuccess）
     @Published var changePasswordSuccess: Bool = false
-    
+
     private let photoService: PhotoService
     private let configService: ConfigService
-    private let albumService: AlbumService
     private let authService: AuthService
     private let tokenManager: TokenManager
-    
+    /// `internal`：供 `AppViewModel+Analytics` 扩展使用。
+    let analyticsTracker: AnalyticsTracker
+
     init() {
         DiagnosticLogging.shared.install(rootContext: nil)
         let container = AppContainerHolder.shared.getContainer(context: nil)
         container.startDiagnosticLogUpload()
         self.photoService = container.photoService
         self.configService = container.configService
-        self.albumService = container.albumService
         self.authService = container.authService
         self.tokenManager = TokenManager(context: nil)
-        
+        self.analyticsTracker = container.analyticsTracker
+
         checkLoginStatus()
         if isLoggedIn {
             loadPhotos()
             loadConfigs()
         }
     }
-    
+
     private func checkLoginStatus() {
         isLoggedIn = tokenManager.isLoggedIn()
     }
-    
+
+    // MARK: - 照片与配置
+
     func loadPhotos() {
         Task {
             do {
@@ -53,7 +56,7 @@ class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     func loadConfigs() {
         Task {
             do {
@@ -64,17 +67,12 @@ class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     func uploadPhoto(photoData: Data, fileName: String, mimeType: String, width: Int32, height: Int32) {
         Task {
             do {
-                let kotlinByteArray = KotlinByteArray(size: Int32(photoData.count))
-                for (index, byte) in photoData.enumerated() {
-                    kotlinByteArray.set(index: Int32(index), value: Int8(bitPattern: byte))
-                }
-                
                 _ = try await photoService.uploadPhotoThrowing(
-                    photoData: kotlinByteArray,
+                    photoData: photoData.toKotlinByteArray(),
                     fileName: fileName,
                     mimeType: mimeType,
                     width: width,
@@ -88,7 +86,7 @@ class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     func deletePhoto(photoId: String) {
         Task {
             do {
@@ -99,7 +97,7 @@ class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     func saveConfig(config: StorageConfig) {
         Task {
             do {
@@ -110,7 +108,7 @@ class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     func deleteConfig(configId: String) {
         Task {
             do {
@@ -121,7 +119,7 @@ class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     func setDefaultConfig(configId: String) {
         Task {
             do {
@@ -132,9 +130,9 @@ class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - 认证
-    
+
     /// 登录（邮箱 + 密码）
     func login(account: String, password: String) {
         authError = nil
@@ -143,23 +141,24 @@ class AppViewModel: ObservableObject {
                 let request = LoginRequest(account: account, password: password)
                 let outcome = try await authService.loginOutcome(request: request)
                 await MainActor.run {
-                if let response = outcome.first {
-                    tokenManager.saveAccessToken(token: response.accessToken)
-                    tokenManager.saveRefreshToken(token: response.refreshToken)
-                    currentUser = response.user
-                    isLoggedIn = true
-                    loadPhotos()
-                    loadConfigs()
-                } else if let message = outcome.second {
-                    authError = String(message)
-                }
+                    if let response = outcome.first {
+                        tokenManager.saveAccessToken(token: response.accessToken)
+                        tokenManager.saveRefreshToken(token: response.refreshToken)
+                        currentUser = response.user
+                        isLoggedIn = true
+                        notifyAuthSessionStarted()
+                        loadPhotos()
+                        loadConfigs()
+                    } else if let message = outcome.second {
+                        authError = String(message)
+                    }
                 }
             } catch {
                 await MainActor.run { authError = error.localizedDescription }
             }
         }
     }
-    
+
     /// 注册（邮箱 + 邮箱验证码）
     func register(username: String, email: String, password: String, emailCode: String) {
         authError = nil
@@ -173,19 +172,18 @@ class AppViewModel: ObservableObject {
                 )
                 let outcome = try await authService.registerOutcome(request: request)
                 await MainActor.run {
-                if outcome.first != nil {
-                    // 注册成功后自动登录
-                    login(account: email, password: password)
-                } else if let message = outcome.second {
-                    authError = String(message)
-                }
+                    if outcome.first != nil {
+                        login(account: email, password: password)
+                    } else if let message = outcome.second {
+                        authError = String(message)
+                    }
                 }
             } catch {
                 await MainActor.run { authError = error.localizedDescription }
             }
         }
     }
-    
+
     /// 发送邮箱验证码
     func sendEmailCode(email: String, type: String = "register") {
         authError = nil
@@ -203,7 +201,7 @@ class AppViewModel: ObservableObject {
             }
         }
     }
-    
+
     /// Mock 登录（开发测试用）
     func mockLogin() {
         authError = nil
@@ -220,10 +218,11 @@ class AppViewModel: ObservableObject {
         tokenManager.saveRefreshToken(token: "mock_refresh_token_\(Int64(Date().timeIntervalSince1970))")
         currentUser = mockUser
         isLoggedIn = true
+        notifyAuthSessionStarted()
         loadPhotos()
         loadConfigs()
     }
-    
+
     /// 登出
     func logout() {
         if let accessToken = tokenManager.getAccessToken(), let refreshToken = tokenManager.getRefreshToken() {
@@ -232,10 +231,12 @@ class AppViewModel: ObservableObject {
             }
         }
         tokenManager.clearTokens()
+        analyticsTracker.clearPending()
+        AnalyticsSession.shared.refresh()
         currentUser = nil
         isLoggedIn = false
     }
-    
+
     /// 清除认证错误（UI 展示 Toast 后调用）
     func clearAuthError() {
         authError = nil
@@ -296,4 +297,3 @@ class AppViewModel: ObservableObject {
         }
     }
 }
-

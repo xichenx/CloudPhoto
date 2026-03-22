@@ -115,5 +115,12 @@ struct AddConfigView: View {
                     .disabled(!canSave)
             }
         }
+        .onAppear {
+            if isEditMode {
+                viewModel.trackPageViewStorageEdit()
+            } else {
+                viewModel.trackPageViewStorageAdd()
+            }
+        }
     }
 }

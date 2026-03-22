@@ -5,6 +5,7 @@ import SwiftUI
  * 使用与 ThemedView 相同的 @AppStorage("themeMode")，取值 "system" / "light" / "dark"
  */
 struct ThemeSettingsView: View {
+    @ObservedObject var viewModel: AppViewModel
     @AppStorage("themeMode") private var themeMode: String = "system"
 
     private let options: [(id: String, title: String, subtitle: String, icon: String)] = [
@@ -33,6 +34,9 @@ struct ThemeSettingsView: View {
         }
         .navigationTitle("主题设置")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            viewModel.trackPageViewThemeSettings()
+        }
     }
 }
 
@@ -76,6 +80,6 @@ private struct ThemeOptionRow: View {
 
 #Preview {
     NavigationStack {
-        ThemeSettingsView()
+        ThemeSettingsView(viewModel: AppViewModel())
     }
 }

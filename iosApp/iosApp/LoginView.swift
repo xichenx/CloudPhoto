@@ -156,6 +156,7 @@ struct LoginView: View {
                                 .font(.system(size: AppTheme.Design.fontSizeBody))
                                 .foregroundColor(AppTheme.Colors.secondaryText)
                             Button("立即注册") {
+                                viewModel.trackLoginGoRegister()
                                 onNavigateToRegister()
                             }
                             .font(.system(size: AppTheme.Design.fontSizeBody, weight: .bold))
@@ -218,6 +219,7 @@ struct LoginView: View {
         if hasError { return }
         
         isLoading = true
+        viewModel.trackLoginSubmit()
         viewModel.login(account: trimmedAccount, password: password)
     }
 }

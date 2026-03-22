@@ -25,7 +25,10 @@ struct PhotosView: View {
             PhotoFullscreenViewer(
                 photos: viewModel.photos,
                 initialIndex: fullscreenStartIndex,
-                onDismiss: { showFullscreenGallery = false },
+                onDismiss: {
+                    viewModel.trackPhotoFullscreenClose()
+                    showFullscreenGallery = false
+                },
                 onDeletePhoto: { photoId in
                     viewModel.deletePhoto(photoId: photoId)
                 }
@@ -70,7 +73,10 @@ struct PhotosView: View {
         .navigationTitle("照片")
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { showImagePicker = true }) {
+                Button(action: {
+                    viewModel.trackPhotoSearchTap()
+                    showImagePicker = true
+                }) {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(AppTheme.Colors.primary)
                 }
@@ -98,6 +104,7 @@ struct PhotosView: View {
                         .background(AppTheme.Colors.surface)
                         .photoGridItemStyle()
                         .onTapGesture {
+                            viewModel.trackPhotoGridItem(photo: photo, positionOneBased: index + 1)
                             fullscreenStartIndex = index
                             showFullscreenGallery = true
                         }
@@ -111,7 +118,10 @@ struct PhotosView: View {
         .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { showImagePicker = true }) {
+                Button(action: {
+                    viewModel.trackPhotoSearchTap()
+                    showImagePicker = true
+                }) {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(AppTheme.Colors.primary)
                 }

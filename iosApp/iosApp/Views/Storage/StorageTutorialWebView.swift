@@ -4,6 +4,7 @@ import WebKit
 import Shared
 
 struct StorageTutorialWebView: View {
+    @ObservedObject var viewModel: AppViewModel
     @Binding var path: [StorageRoute]
     @State private var isLoading = true
 
@@ -28,6 +29,9 @@ struct StorageTutorialWebView: View {
                     }
                 }
             }
+        }
+        .onAppear {
+            viewModel.trackPageViewStorageTutorial()
         }
     }
 }

@@ -26,24 +26,38 @@ struct AuthFlowView: View {
     @State private var showRegister = false
 
     var body: some View {
-        if showRegister {
-            RegisterView(viewModel: viewModel, onNavigateToLogin: {
-                showRegister = false
-            })
-            .overlay(alignment: .topLeading) {
-                Button(action: { showRegister = false }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(AppTheme.Colors.primary)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
+        Group {
+            if showRegister {
+                RegisterView(viewModel: viewModel, onNavigateToLogin: {
+                    showRegister = false
+                })
+                .overlay(alignment: .topLeading) {
+                    Button(action: { showRegister = false }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(AppTheme.Colors.primary)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                    }
+                    .padding(.top, 8)
                 }
-                .padding(.top, 8)
+            } else {
+                LoginView(viewModel: viewModel, onNavigateToRegister: {
+                    showRegister = true
+                })
             }
-        } else {
-            LoginView(viewModel: viewModel, onNavigateToRegister: {
-                showRegister = true
-            })
+        }
+        .onAppear {
+            if !showRegister {
+                viewModel.trackPageViewLogin(fromPage: nil)
+            }
+        }
+        .onChange(of: showRegister) { _, newValue in
+            if newValue {
+                viewModel.trackPageViewRegister(fromPage: "login")
+            } else {
+                viewModel.trackPageViewLogin(fromPage: "register")
+            }
         }
     }
 }
@@ -55,6 +69,7 @@ struct MainTabView: View {
     @ObservedObject var viewModel: AppViewModel
     @State private var selectedTab = 0
     @State private var previousTabBeforeCamera = 0
+    @State private var previousAnalyticsPage: String?
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -91,10 +106,24 @@ struct MainTabView: View {
                 .tag(4)
         }
         .tint(AppTheme.Colors.primary)
-        .onChange(of: selectedTab) { _, newValue in
+        .onAppear {
+            let initial = AppAnalyticsCatalog.page(forMainTabRoute: AppAnalyticsCatalog.mainTabRoutes[0])
+            viewModel.trackAnalyticsPageView(page: initial, fromPage: nil)
+            previousAnalyticsPage = initial
+        }
+        .onChange(of: selectedTab) { oldValue, newValue in
             if newValue != 2 {
                 previousTabBeforeCamera = newValue
             }
+            guard oldValue != newValue else { return }
+            let routes = AppAnalyticsCatalog.mainTabRoutes
+            guard oldValue >= 0, oldValue < routes.count, newValue >= 0, newValue < routes.count else { return }
+            let fromRoute = routes[oldValue]
+            let toRoute = routes[newValue]
+            viewModel.trackBottomNavClick(targetRoute: toRoute, fromRoute: fromRoute)
+            let toPage = AppAnalyticsCatalog.page(forMainTabRoute: toRoute)
+            viewModel.trackAnalyticsPageView(page: toPage, fromPage: previousAnalyticsPage)
+            previousAnalyticsPage = toPage
         }
     }
 }

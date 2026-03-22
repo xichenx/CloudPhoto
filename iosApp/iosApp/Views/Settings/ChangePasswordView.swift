@@ -30,6 +30,7 @@ struct ChangePasswordView: View {
         .navigationTitle(step == 1 ? "验证身份" : "设置新密码")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
+            viewModel.trackPageViewChangePassword()
             if let userEmail = viewModel.currentUser?.email, !userEmail.isEmpty {
                 email = userEmail
             }
