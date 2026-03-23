@@ -28,6 +28,9 @@ object ApiConfig {
 
     /** 批量埋点（单次最多 100 条） */
     const val APP_EVENTS_BATCH_PATH: String = "/api/events/batch"
+
+    /** 推送设备注册（相对 [AUTH_BASE_URL]），需 Bearer Token */
+    const val PUSH_DEVICES_PATH: String = "/api/push/devices"
 }
 
 /**

@@ -38,6 +38,7 @@ class AppViewModel: ObservableObject {
         if isLoggedIn {
             loadPhotos()
             loadConfigs()
+            IosPushRegistration.shared.syncApnsTokenAfterLogin(tokenHex: AppDelegate.pendingApnsTokenHex)
         }
     }
 
@@ -149,6 +150,7 @@ class AppViewModel: ObservableObject {
                         notifyAuthSessionStarted()
                         loadPhotos()
                         loadConfigs()
+                        IosPushRegistration.shared.syncApnsTokenAfterLogin(tokenHex: AppDelegate.pendingApnsTokenHex)
                     } else if let message = outcome.second {
                         authError = String(message)
                     }
@@ -221,10 +223,19 @@ class AppViewModel: ObservableObject {
         notifyAuthSessionStarted()
         loadPhotos()
         loadConfigs()
+        IosPushRegistration.shared.syncApnsTokenAfterLogin(tokenHex: AppDelegate.pendingApnsTokenHex)
     }
 
     /// 登出
     func logout() {
+        IosPushRegistration.shared.unregisterOnLogout {
+            DispatchQueue.main.async {
+                self.finishLogoutAfterPushUnregister()
+            }
+        }
+    }
+
+    private func finishLogoutAfterPushUnregister() {
         if let accessToken = tokenManager.getAccessToken(), let refreshToken = tokenManager.getRefreshToken() {
             Task {
                 _ = try? await authService.logout(accessToken: accessToken, refreshToken: refreshToken)

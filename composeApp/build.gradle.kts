@@ -3,9 +3,10 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.androidApplication)
+    id("com.google.gms.google-services")
 }
 
 kotlin {
@@ -23,7 +24,7 @@ kotlin {
             implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.0")
             implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.0")
             implementation("androidx.core:core-ktx:1.17.0")
-            
+
             // Ktor：OkHttp 引擎 + 磁盘缓存（Caches 目录、LRU，非业务持久化相册）
             implementation("io.ktor:ktor-client-okhttp:2.3.12")
             implementation("io.ktor:ktor-client-content-negotiation:2.3.12")
@@ -63,12 +64,40 @@ android {
     namespace = "com.xichen.cloudphoto"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     defaultConfig {
         applicationId = "com.xichen.cloudphoto"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
+    }
+
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("international") {
+            dimension = "distribution"
+            buildConfigField("boolean", "USE_FCM_PUSH", "true")
+            buildConfigField("boolean", "USE_VENDOR_PUSH", "false")
+        }
+        create("china") {
+            dimension = "distribution"
+            buildConfigField("boolean", "USE_FCM_PUSH", "false")
+            buildConfigField("boolean", "USE_VENDOR_PUSH", "true")
+        }
+    }
+
+    sourceSets {
+        getByName("international") {
+            kotlin.srcDir("src/androidInternational/kotlin")
+            manifest.srcFile("src/androidInternational/AndroidManifest.xml")
+        }
+        getByName("china") {
+            kotlin.srcDir("src/androidChina/kotlin")
+        }
     }
     packaging {
         resources {
@@ -88,5 +117,18 @@ android {
 
 dependencies {
     debugImplementation(compose.uiTooling)
+
+    "internationalImplementation"(project.dependencies.platform("com.google.firebase:firebase-bom:34.11.0"))
+    "internationalImplementation"("com.google.firebase:firebase-analytics")
+    "internationalImplementation"("com.google.firebase:firebase-messaging")
+}
+
+afterEvaluate {
+    tasks.matching { task ->
+        val n = task.name
+        n.contains("GoogleServices", ignoreCase = true) && n.contains("China", ignoreCase = true)
+    }.configureEach {
+        enabled = false
+    }
 }
 

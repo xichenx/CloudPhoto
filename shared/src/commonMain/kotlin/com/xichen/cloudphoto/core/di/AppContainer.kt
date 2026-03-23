@@ -18,6 +18,7 @@ import com.xichen.cloudphoto.analytics.AnalyticsDeviceMeta
 import com.xichen.cloudphoto.analytics.AnalyticsTracker
 import com.xichen.cloudphoto.analytics.analyticsDeviceMeta
 import com.xichen.cloudphoto.service.AppEventApiService
+import com.xichen.cloudphoto.service.PushDeviceApiService
 import com.xichen.cloudphoto.service.PhotoApiService
 import com.xichen.cloudphoto.service.PhotoService
 import io.ktor.client.HttpClient
@@ -120,6 +121,11 @@ class AppContainer(context: Any? = null) {
     /** 对象存储配置 API 服务（调用后端 API） */
     val configApiService: ConfigApiService by lazy {
         ConfigApiService(authorizedApiHttpClient.value)
+    }
+
+    /** 推送 Token 注册（需登录态） */
+    val pushDeviceApiService: PushDeviceApiService by lazy {
+        PushDeviceApiService(authorizedApiHttpClient.value)
     }
 
     /**

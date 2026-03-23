@@ -23,6 +23,8 @@ import com.xichen.cloudphoto.core.auth.TokenManager
 import com.xichen.cloudphoto.core.network.*
 import com.xichen.cloudphoto.model.*
 import com.xichen.cloudphoto.navigation.Screen
+import com.xichen.cloudphoto.push.PushRegistrationAndroid
+import com.xichen.cloudphoto.push.pushInstallId
 import com.xichen.cloudphoto.navigation.toAnalyticsPage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -104,6 +106,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (_isLoggedIn.value) {
             loadPhotos()
             loadConfigs()
+            PushRegistrationAndroid.sync(getApplication())
         }
     }
     
@@ -233,6 +236,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 
                 loadPhotos()
                 loadConfigs()
+                PushRegistrationAndroid.sync(getApplication())
             }.onError { exception, message ->
                 val errorMsg = message ?: exception.message ?: "登录失败"
                 _authError.value = errorMsg
@@ -354,6 +358,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             // 加载数据
             loadPhotos()
             loadConfigs()
+            PushRegistrationAndroid.sync(getApplication())
         }
     }
     
@@ -362,6 +367,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun logout() {
         viewModelScope.launch {
+            runCatching {
+                if (tokenManager.isLoggedIn()) {
+                    val installId = pushInstallId(getApplication())
+                    container.pushDeviceApiService.unregisterOutcome(installId)
+                }
+            }
             val accessToken = tokenManager.getAccessToken()
             val refreshToken = tokenManager.getRefreshToken()
             

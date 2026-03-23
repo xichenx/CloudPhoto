@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "278230605555",
+    "project_id": "cloudphoto-55b49",
+    "storage_bucket": "cloudphoto-55b49.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:278230605555:android:048d7df3e3c23e413d2186",
+        "android_client_info": {
+          "package_name": "com.xichen.cloudphoto"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDsttzv2OCDd6zJxxaHmD1WpXWDMi7w-VM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
