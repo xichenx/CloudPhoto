@@ -1,8 +1,8 @@
 {
   "project_info": {
     "project_number": "0",
-    "project_id": "replace-with-your-firebase-project-id",
-    "storage_bucket": "replace-with-your-firebase-project-id.appspot.com"
+    "project_id": "replace-with-firebase-project-id",
+    "storage_bucket": "replace-with-firebase-project-id.appspot.com"
   },
   "client": [
     {
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "REPLACE_WITH_KEY_FROM_FIREBASE_CONSOLE_DOWNLOAD"
+          "current_key": "PASTE_FROM_FIREBASE_CONSOLE_DOWNLOAD_ONLY_LOCAL"
         }
       ],
       "services": {

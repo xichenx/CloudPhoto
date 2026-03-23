@@ -5,6 +5,20 @@
 xcuserdata
 !src/**/build/
 local.properties
+
+# Firebase / FCM (contains API keys when using real project)
+google-services.json
+GoogleService-Info.plist
+
+# Android signing & local secrets
+*.jks
+*.keystore
+keystore.properties
+secrets.properties
+
+# APNs auth key if stored in repo tree
+*.p8
+
 .idea
 .DS_Store
 captures
