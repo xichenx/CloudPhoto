@@ -5,12 +5,13 @@ import Shared
  * 根界面 - 未登录显示登录/注册，已登录显示主 Tab
  */
 struct ContentView: View {
+    @EnvironmentObject private var mainTabDeepLinkBus: MainTabDeepLinkForegroundBus
     @StateObject private var viewModel = AppViewModel()
 
     var body: some View {
         ThemedView {
             if viewModel.isLoggedIn {
-                MainTabView(viewModel: viewModel)
+                MainTabView(viewModel: viewModel, mainTabDeepLinkBus: mainTabDeepLinkBus)
             } else {
                 AuthFlowView(viewModel: viewModel)
             }
@@ -67,6 +68,7 @@ struct AuthFlowView: View {
  */
 struct MainTabView: View {
     @ObservedObject var viewModel: AppViewModel
+    @ObservedObject var mainTabDeepLinkBus: MainTabDeepLinkForegroundBus
     @State private var selectedTab = 0
     @State private var previousTabBeforeCamera = 0
     @State private var previousAnalyticsPage: String?
@@ -106,6 +108,11 @@ struct MainTabView: View {
                 .tag(4)
         }
         .tint(AppTheme.Colors.primary)
+        .onChange(of: mainTabDeepLinkBus.requestedTabIndex) { _, newValue in
+            guard let tab = newValue else { return }
+            selectedTab = tab
+            mainTabDeepLinkBus.requestedTabIndex = nil
+        }
         .onAppear {
             let initial = AppAnalyticsCatalog.page(forMainTabRoute: AppAnalyticsCatalog.mainTabRoutes[0])
             viewModel.trackAnalyticsPageView(page: initial, fromPage: nil)
@@ -133,5 +140,6 @@ struct MainTabView: View {
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView()
+            .environmentObject(MainTabDeepLinkForegroundBus())
     }
 }

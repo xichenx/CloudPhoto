@@ -13,6 +13,7 @@ import com.xichen.cloudphoto.service.AlbumService
 import com.xichen.cloudphoto.service.AuthService
 import com.xichen.cloudphoto.service.ConfigApiService
 import com.xichen.cloudphoto.service.ConfigService
+import com.xichen.cloudphoto.service.FeedbackApiService
 import com.xichen.cloudphoto.core.logger.RemoteLogUploadScheduler
 import com.xichen.cloudphoto.analytics.AnalyticsDeviceMeta
 import com.xichen.cloudphoto.analytics.AnalyticsTracker
@@ -20,6 +21,7 @@ import com.xichen.cloudphoto.analytics.analyticsDeviceMeta
 import com.xichen.cloudphoto.service.AppEventApiService
 import com.xichen.cloudphoto.service.PushDeviceApiService
 import com.xichen.cloudphoto.service.PhotoApiService
+import com.xichen.cloudphoto.service.UserPushPreferenceApiService
 import com.xichen.cloudphoto.service.PhotoService
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
@@ -128,8 +130,20 @@ class AppContainer(context: Any? = null) {
         PushDeviceApiService(authorizedApiHttpClient.value)
     }
 
+    /** 用户反馈（需登录态） */
+    val feedbackApiService: FeedbackApiService by lazy {
+        FeedbackApiService(authorizedApiHttpClient.value)
+    }
+
+    /** 用户云端推送开关（需登录态） */
+    val userPushPreferenceApiService: UserPushPreferenceApiService by lazy {
+        UserPushPreferenceApiService(authorizedApiHttpClient.value)
+    }
+
     /**
-     * 启动诊断日志定时上传（需先 [com.xichen.cloudphoto.core.logger.DiagnosticLogging.install]）。
+     * 注册诊断日志上传用的 [HttpClient]（需先 [com.xichen.cloudphoto.core.logger.DiagnosticLogging.install]）。
+     * 是否后台定时上传由 [com.xichen.cloudphoto.core.logger.RemoteLogConfig.periodicRemoteUploadEnabled] 控制；
+     * 用户可在「关于 → 上传日志」主动 [com.xichen.cloudphoto.core.logger.RemoteLogUploadScheduler.uploadDiagnosticLogsNow]。
      */
     fun startDiagnosticLogUpload() {
         RemoteLogUploadScheduler.start(authorizedApiHttpClient.value)

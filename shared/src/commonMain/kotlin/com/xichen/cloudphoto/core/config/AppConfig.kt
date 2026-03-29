@@ -31,6 +31,18 @@ object ApiConfig {
 
     /** 推送设备注册（相对 [AUTH_BASE_URL]），需 Bearer Token */
     const val PUSH_DEVICES_PATH: String = "/api/push/devices"
+
+    /**
+     * 用户云端推送开关（相对 [AUTH_BASE_URL]），需 Bearer Token。
+     * GET/PUT 同路径；服务端根据该标志决定是否向该用户下发推送。
+     */
+    const val USER_PUSH_PREFERENCE_PATH: String = "/api/user/push-preference"
+
+    /**
+     * 用户反馈（相对 [AUTH_BASE_URL]），需 Bearer Token。
+     * 服务端建议：落库并可选邮件通知；请求体见 [com.xichen.cloudphoto.model.FeedbackSubmitRequest]。
+     */
+    const val FEEDBACK_PATH: String = "/api/feedback"
 }
 
 /**

@@ -3,8 +3,6 @@ package com.xichen.cloudphoto.ui
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -145,9 +143,17 @@ fun SettingsScreen(
             
             item {
                 ModernSettingsCell(
-                    title = "通知设置",
+                    title = "消息通知",
                     icon = Icons.Default.Notifications,
-                    onClick = { /* TODO: 打开通知设置 */ },
+                    onClick = {
+                        viewModel.trackClick(
+                            page = AnalyticsPages.SETTINGS,
+                            eventId = AnalyticsEventIds.SETTINGS_NOTIFICATIONS,
+                            elementType = "list_item",
+                            elementName = "消息通知"
+                        )
+                        navController.navigate(Screen.NotificationSettings.route)
+                    },
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
                 )
             }
@@ -164,7 +170,15 @@ fun SettingsScreen(
                 ModernSettingsCell(
                     title = "帮助与反馈",
                     icon = Icons.Default.Help,
-                    onClick = { /* TODO: 打开帮助页面 */ },
+                    onClick = {
+                        viewModel.trackClick(
+                            page = AnalyticsPages.SETTINGS,
+                            eventId = AnalyticsEventIds.SETTINGS_HELP,
+                            elementType = "list_item",
+                            elementName = "帮助与反馈"
+                        )
+                        navController.navigate(Screen.HelpFeedback.route)
+                    },
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
                 )
             }
@@ -173,7 +187,15 @@ fun SettingsScreen(
                 ModernSettingsCell(
                     title = "关于",
                     icon = Icons.Default.Info,
-                    onClick = { /* TODO: 打开关于页面 */ },
+                    onClick = {
+                        viewModel.trackClick(
+                            page = AnalyticsPages.SETTINGS,
+                            eventId = AnalyticsEventIds.SETTINGS_ABOUT,
+                            elementType = "list_item",
+                            elementName = "关于"
+                        )
+                        navController.navigate(Screen.About.route)
+                    },
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
                 )
             }
@@ -433,8 +455,10 @@ fun SettingsSection(
 }
 
 /**
- * 现代化的设置项Cell（无阴影）
+ * 现代化的设置项Cell（无阴影）。
+ * 默认可点击；[readOnly] 为 true 时仅展示（如「当前版本」右侧文案）。
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ModernSettingsCell(
     title: String,
@@ -443,21 +467,13 @@ fun ModernSettingsCell(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     titleColor: Color = Color.Unspecified,
-    iconTint: Color = Color.Unspecified
+    iconTint: Color = Color.Unspecified,
+    enabled: Boolean = true,
+    readOnly: Boolean = false,
+    trailingValue: String? = null,
 ) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() },
-                onClick = onClick
-            ),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    ) {
+    @Composable
+    fun cellInner() {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -465,7 +481,6 @@ fun ModernSettingsCell(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 图标背景
             Surface(
                 modifier = Modifier.size(40.dp),
                 shape = RoundedCornerShape(12.dp),
@@ -482,8 +497,7 @@ fun ModernSettingsCell(
                         .padding(10.dp)
                 )
             }
-            
-            // 标题和副标题
+
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -503,19 +517,55 @@ fun ModernSettingsCell(
                         text = subtitle,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
             }
-            
-            // 右箭头
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(20.dp)
-            )
+
+            when {
+                trailingValue != null -> {
+                    Text(
+                        text = trailingValue,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                !readOnly -> {
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+    }
+
+    if (readOnly) {
+        Card(
+            modifier = modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+        ) {
+            cellInner()
+        }
+    } else {
+        Card(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+        ) {
+            cellInner()
         }
     }
 }

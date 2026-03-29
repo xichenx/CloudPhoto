@@ -17,6 +17,10 @@ fun String.toAnalyticsPage(): String = when (this) {
     Screen.AccountSecurity.route -> AnalyticsPages.ACCOUNT_SECURITY
     Screen.ChangePassword.route -> AnalyticsPages.CHANGE_PASSWORD
     Screen.ThemeSettings.route -> AnalyticsPages.THEME_SETTINGS
+    Screen.NotificationSettings.route -> AnalyticsPages.NOTIFICATION_SETTINGS
+    Screen.HelpFeedback.route -> AnalyticsPages.HELP_FEEDBACK
+    Screen.About.route -> AnalyticsPages.ABOUT
+    Screen.OpenSourceLicenses.route -> AnalyticsPages.OPEN_SOURCE_LICENSES
     else -> if (startsWith("storage/edit/")) {
         AnalyticsPages.STORAGE_EDIT
     } else {

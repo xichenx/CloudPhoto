@@ -6,4 +6,8 @@ enum SettingsRoute: Hashable {
     case accountSecurity
     case changePassword
     case themeSettings
+    case notificationSettings
+    case helpFeedback
+    case about
+    case openSourceLicenses
 }

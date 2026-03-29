@@ -6,9 +6,6 @@ import Shared
  */
 struct PhotosView: View {
     @ObservedObject var viewModel: AppViewModel
-    @State private var showImagePicker = false
-    @State private var selectedImage: UIImage?
-    @State private var showUploadDialog = false
     @State private var showFullscreenGallery = false
     @State private var fullscreenStartIndex = 0
 
@@ -34,26 +31,6 @@ struct PhotosView: View {
                 }
             )
         }
-        .sheet(isPresented: $showImagePicker) {
-            ImagePicker(image: $selectedImage, showUploadDialog: $showUploadDialog)
-        }
-        .alert("上传照片", isPresented: $showUploadDialog) {
-            Button("上传") {
-                if let image = selectedImage,
-                   let imageData = image.jpegData(compressionQuality: 0.8) {
-                    viewModel.uploadPhoto(
-                        photoData: imageData,
-                        fileName: "photo_\(Date().timeIntervalSince1970).jpg",
-                        mimeType: "image/jpeg",
-                        width: Int32(image.size.width),
-                        height: Int32(image.size.height)
-                    )
-                }
-            }
-            Button("取消", role: .cancel) {}
-        } message: {
-            Text("是否上传这张照片到云端？")
-        }
     }
 
     private var photosEmptyContent: some View {
@@ -75,11 +52,11 @@ struct PhotosView: View {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
                     viewModel.trackPhotoSearchTap()
-                    showImagePicker = true
                 }) {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(AppTheme.Colors.primary)
                 }
+                .accessibilityLabel("搜索")
             }
         }
     }
@@ -115,16 +92,17 @@ struct PhotosView: View {
         .background(AppTheme.Colors.background)
         .navigationTitle("照片")
         .navigationBarTitleDisplayMode(.large)
-        .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+        // 导航栏区域透明：滚到顶栏下的照片不被叠色/毛玻璃影响；标题仍用系统默认 label 色，与其它页一致
+        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
                     viewModel.trackPhotoSearchTap()
-                    showImagePicker = true
                 }) {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(AppTheme.Colors.primary)
                 }
+                .accessibilityLabel("搜索")
             }
         }
     }

@@ -70,6 +70,8 @@ struct SettingsView: View {
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(AppTheme.Colors.secondaryText)
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     Button {
@@ -83,6 +85,8 @@ struct SettingsView: View {
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(AppTheme.Colors.secondaryText)
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
@@ -99,20 +103,58 @@ struct SettingsView: View {
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(AppTheme.Colors.secondaryText)
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    NavigationLink(destination: EmptyView()) {
-                        Label("通知设置", systemImage: "bell")
+                    Button {
+                        viewModel.trackSettingsNotificationTap()
+                        path.append(.notificationSettings)
+                    } label: {
+                        HStack {
+                            Label("消息通知", systemImage: "bell")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(AppTheme.Colors.secondaryText)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
                 }
 
                 Section("其他") {
-                    NavigationLink(destination: EmptyView()) {
-                        Label("帮助与反馈", systemImage: "questionmark.circle")
+                    Button {
+                        viewModel.trackSettingsHelpTap()
+                        path.append(.helpFeedback)
+                    } label: {
+                        HStack {
+                            Label("帮助与反馈", systemImage: "questionmark.circle")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(AppTheme.Colors.secondaryText)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
                     }
-                    NavigationLink(destination: EmptyView()) {
-                        Label("关于", systemImage: "info.circle")
+                    .buttonStyle(.plain)
+                    Button {
+                        viewModel.trackSettingsAboutTap()
+                        path.append(.about)
+                    } label: {
+                        HStack {
+                            Label("关于", systemImage: "info.circle")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(AppTheme.Colors.secondaryText)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
                 }
             }
             .navigationTitle("我的")
@@ -127,6 +169,14 @@ struct SettingsView: View {
                     ChangePasswordView(viewModel: viewModel)
                 case .themeSettings:
                     ThemeSettingsView(viewModel: viewModel)
+                case .notificationSettings:
+                    NotificationSettingsView(viewModel: viewModel)
+                case .helpFeedback:
+                    HelpFeedbackView(viewModel: viewModel)
+                case .about:
+                    AboutView(viewModel: viewModel, path: $path)
+                case .openSourceLicenses:
+                    OpenSourceLicensesView()
                 }
             }
         }

@@ -181,7 +181,7 @@ object ApiConfig {
 
 ### 客户端诊断日志（可上传）
 移动端通过 **Napier → 自定义 Antilog** 统一输出到控制台，并将脱敏后的结构化行写入本地 NDJSON 队列（Android：`cacheDir/cloudphoto_remote_logs.ndjson`；iOS：Caches 目录下同文件名）。  
-`AppContainer.startDiagnosticLogUpload()` 会启动后台任务，默认 **每 5 分钟** 批量 POST 一次；也可调用 `RemoteLogUploadScheduler.requestFlushNow()` 立即尝试上传。
+`AppContainer.startDiagnosticLogUpload()` 会注册带 Token 的 `HttpClient`；**定时上传**由 `RemoteLogConfig.periodicRemoteUploadEnabled` 控制（默认 `false`，避免静默耗流量）。用户可在应用内 **关于 → 上传日志** 调用 `RemoteLogUploadScheduler.uploadDiagnosticLogsNow()` 主动清空队列。若将 `periodicRemoteUploadEnabled` 设为 `true`，则恢复约 **每 5 分钟** 批量 POST；亦可 `RemoteLogUploadScheduler.requestFlushNow()` 异步触发单批上传。
 
 - **路径常量**：`ApiConfig.CLIENT_LOG_BATCH_PATH`（默认 `"/api/client-logs/batch"`，与 `AUTH_BASE_URL` 拼接）
 - **HTTP**：`POST`，`Content-Type: application/json`，与业务 API 共用带 Token 的 `HttpClient`（未登录时不带 `Authorization`）
@@ -192,7 +192,17 @@ object ApiConfig {
   - `entries: List<ClientLogEntry>`，每项含 `tsEpochMillis`、`level`（与 `LogLevel` 同名）、`tag`、`message`、`stack`（可选，截断后的堆栈）
 - **响应**：建议 `200`/`204` 空 body；客户端不解析 body，仅判断 HTTP 成功即删除本批已上传行。
 - **服务端建议**：校验体大小与条数上限；按 `batchId` 去重；落库（MySQL / MongoDB / ClickHouse 等）后提供按用户、时间、tag 检索的管理后台。未登录用户也可写入匿名设备维度，需注意隐私与留存策略。
-- **客户端开关**：`RemoteLogConfig.bufferToFileEnabled` 为 `false` 时仅控制台日志，不再写入上传队列。
+- **客户端开关**：`RemoteLogConfig.bufferToFileEnabled` 为 `false` 时仅控制台日志，不再写入上传队列；`RemoteLogConfig.periodicRemoteUploadEnabled` 控制是否后台定时上传。
+
+### 用户云端推送开关（消息通知）
+
+客户端 **「我的 → 消息通知」** 仅控制服务端是否向该用户账号**下发推送**（业务策略），**不是**系统通知权限。
+
+- **路径常量**：`ApiConfig.USER_PUSH_PREFERENCE_PATH`（默认 `"/api/user/push-preference"`，与 `AUTH_BASE_URL` 拼接）
+- **鉴权**：需登录，`Authorization: Bearer <accessToken>`
+- **GET**：响应体为统一封装 `ApiResponse<UserPushPreferenceDto>`，`data` 形如 `{ "pushEnabled": true }`
+- **PUT**：请求体 `{ "pushEnabled": true | false }`（关闭时字段仍需下发 `false`，客户端已用 `@EncodeDefault(ALWAYS)` 保证序列化）
+- **服务端建议**：按用户 ID 持久化；实际下发 FCM/APNs 前检查 `pushEnabled`；新用户默认可为 `true`
 
 ## 注意事项
 

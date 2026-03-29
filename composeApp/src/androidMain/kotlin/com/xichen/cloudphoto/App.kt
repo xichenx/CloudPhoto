@@ -1,9 +1,12 @@
 package com.xichen.cloudphoto
 
+import android.content.Intent
+import androidx.activity.ComponentActivity
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.util.Consumer
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import com.xichen.cloudphoto.core.ResponsiveContainer
@@ -14,6 +17,18 @@ import com.xichen.cloudphoto.ui.MainScreen
 @Composable
 fun App() {
     val viewModel: AppViewModel = viewModel()
+    val context = LocalContext.current
+    DisposableEffect(context) {
+        val activity = context as? ComponentActivity
+        if (activity != null) {
+            viewModel.handleWidgetDeepLinkFromIntent(activity.intent)
+            val listener = Consumer<Intent> { viewModel.handleWidgetDeepLinkFromIntent(it) }
+            activity.addOnNewIntentListener(listener)
+            onDispose { activity.removeOnNewIntentListener(listener) }
+        } else {
+            onDispose { }
+        }
+    }
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
     
     // 调试日志

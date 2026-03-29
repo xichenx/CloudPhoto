@@ -10,7 +10,7 @@ struct StorageTutorialWebView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            WebView(urlString: StorageTutorialUrlKt.storageConfigTutorialUrlString(), isLoading: $isLoading)
+            WebView(urlString: StorageTutorialUrls.shared.value(), isLoading: $isLoading)
             if isLoading {
                 ProgressView()
                     .scaleEffect(1.2)

@@ -16,11 +16,15 @@ import androidx.navigation.navArgument
 import com.xichen.cloudphoto.ui.AccountSecurityScreen
 import com.xichen.cloudphoto.ui.AddStorageConfigScreen
 import com.xichen.cloudphoto.ui.ChangePasswordScreen
+import com.xichen.cloudphoto.ui.AboutScreen
+import com.xichen.cloudphoto.ui.OpenSourceLicensesScreen
+import com.xichen.cloudphoto.ui.HelpFeedbackScreen
 import com.xichen.cloudphoto.ui.AlbumsScreen
 import com.xichen.cloudphoto.ui.CameraScreen
 import com.xichen.cloudphoto.ui.PhotosScreen
 import com.xichen.cloudphoto.ui.ProfileScreen
 import com.xichen.cloudphoto.ui.SettingsScreen
+import com.xichen.cloudphoto.ui.NotificationSettingsScreen
 import com.xichen.cloudphoto.ui.ThemeSettingsScreen
 import com.xichen.cloudphoto.ui.StorageScreen
 import com.xichen.cloudphoto.ui.StorageTutorialScreen
@@ -44,6 +48,10 @@ sealed class Screen(val route: String) {
     object AccountSecurity : Screen("account_security")
     object ChangePassword : Screen("change_password")
     object ThemeSettings : Screen("theme_settings")
+    object NotificationSettings : Screen("notification_settings")
+    object HelpFeedback : Screen("help_feedback")
+    object About : Screen("about")
+    object OpenSourceLicenses : Screen("open_source_licenses")
 
     /**
      * 属于底部导航栏的主 Tab 路由。仅在这些界面显示底部栏；
@@ -196,6 +204,30 @@ fun NavGraph(
         composable(Screen.ThemeSettings.route) {
             ThemeSettingsScreen(
                 viewModel = viewModel,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.NotificationSettings.route) {
+            NotificationSettingsScreen(
+                viewModel = viewModel,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.HelpFeedback.route) {
+            HelpFeedbackScreen(
+                viewModel = viewModel,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.About.route) {
+            AboutScreen(
+                viewModel = viewModel,
+                navController = navController,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.OpenSourceLicenses.route) {
+            OpenSourceLicensesScreen(
                 onBack = { navController.popBackStack() }
             )
         }

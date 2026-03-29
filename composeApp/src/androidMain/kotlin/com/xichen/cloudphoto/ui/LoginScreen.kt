@@ -312,65 +312,10 @@ fun LoginScreen(
                         }
                     }
                     
-                    // 分隔线和注册链接 - 更紧凑的布局
+                    // 注册链接
                     Column(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // 分隔线
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            HorizontalDivider(
-                                modifier = Modifier.weight(1f),
-                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
-                                thickness = 1.dp
-                            )
-                            Text(
-                                text = "或",
-                                modifier = Modifier.padding(horizontal = 12.dp),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
-                            )
-                            HorizontalDivider(
-                                modifier = Modifier.weight(1f),
-                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
-                                thickness = 1.dp
-                            )
-                        }
-                        
-                        // Mock 快速登录按钮 - 仅用于开发测试
-                        OutlinedButton(
-                            onClick = {
-                                if (viewModel != null) {
-                                    viewModel.mockLogin()
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = MaterialTheme.colorScheme.secondary
-                            )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.FlashOn,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                                tint = MaterialTheme.colorScheme.secondary
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "快速登录（Mock）",
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                        }
-                        
-                        // 跳转到注册
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.Center,

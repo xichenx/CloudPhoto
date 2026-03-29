@@ -36,6 +36,11 @@ kotlin {
             
             // Navigation Compose
             implementation("androidx.navigation:navigation-compose:2.8.4")
+
+            // Home screen widgets (Glance; snapshot from shared [WidgetSnapshotSync])
+            implementation("androidx.glance:glance:1.1.1")
+            implementation("androidx.glance:glance-appwidget:1.1.1")
+            implementation("androidx.glance:glance-material3:1.1.1")
             
             // System UI Controller
             implementation("com.google.accompanist:accompanist-systemuicontroller:0.34.0")

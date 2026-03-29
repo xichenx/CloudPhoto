@@ -8,11 +8,18 @@ import SwiftUI
 @main
 struct iOSApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @StateObject private var mainTabDeepLinkBus = MainTabDeepLinkForegroundBus()
 
     var body: some Scene {
         WindowGroup {
             ThemedView {
                 ContentView()
+                    .environmentObject(mainTabDeepLinkBus)
+            }
+            .onOpenURL { url in
+                if let tab = MainTabDeepLinkForegroundBus.tabIndex(for: url) {
+                    mainTabDeepLinkBus.requestTabIndex(tab)
+                }
             }
         }
     }

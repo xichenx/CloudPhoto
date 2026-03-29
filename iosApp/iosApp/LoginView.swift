@@ -123,34 +123,6 @@ struct LoginView: View {
                         .disabled(isLoading)
                         .buttonStyle(.plain)
                         
-                        // 分隔线
-                        HStack {
-                            Rectangle().fill(AppTheme.Colors.secondaryText.opacity(0.25)).frame(height: 1)
-                            Text("或")
-                                .font(.system(size: AppTheme.Design.fontSizeFootnote))
-                                .foregroundColor(AppTheme.Colors.secondaryText)
-                            Rectangle().fill(AppTheme.Colors.secondaryText.opacity(0.25)).frame(height: 1)
-                        }
-                        
-                        Button(action: {
-                            viewModel.mockLogin()
-                        }) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "bolt.fill")
-                                    .font(.system(size: 18))
-                                Text("快速登录（Mock）")
-                                    .font(.system(size: AppTheme.Design.fontSizeBody, weight: .medium))
-                            }
-                            .foregroundColor(AppTheme.Colors.secondary)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 48)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: AppTheme.Design.cornerRadiusLarge)
-                                    .stroke(AppTheme.Colors.secondary.opacity(0.6), lineWidth: 1)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        
                         HStack(spacing: 4) {
                             Text("还没有账户？")
                                 .font(.system(size: AppTheme.Design.fontSizeBody))

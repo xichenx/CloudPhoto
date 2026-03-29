@@ -131,6 +131,31 @@ extension AppViewModel {
         trackClick(page: AppAnalyticsCatalog.Page.settings, eventId: AppAnalyticsCatalog.EventId.settingsTheme, elementType: "list_item", elementName: "主题设置")
     }
 
+    func trackSettingsNotificationTap() {
+        trackClick(page: AppAnalyticsCatalog.Page.settings, eventId: AppAnalyticsCatalog.EventId.settingsNotifications, elementType: "list_item", elementName: "消息通知")
+    }
+
+    func trackPageViewNotificationSettings() {
+        trackAnalyticsPageView(page: AppAnalyticsCatalog.Page.notificationSettings, fromPage: AppAnalyticsCatalog.Page.settings)
+    }
+
+    func trackNotificationCloudPushToggle(enabled: Bool) {
+        trackClick(
+            page: AppAnalyticsCatalog.Page.notificationSettings,
+            eventId: AppAnalyticsCatalog.EventId.notificationCloudPushToggle,
+            elementType: "switch",
+            elementName: enabled ? "开启云端推送" : "关闭云端推送"
+        )
+    }
+
+    func trackSettingsHelpTap() {
+        trackClick(page: AppAnalyticsCatalog.Page.settings, eventId: AppAnalyticsCatalog.EventId.settingsHelp, elementType: "list_item", elementName: "帮助与反馈")
+    }
+
+    func trackSettingsAboutTap() {
+        trackClick(page: AppAnalyticsCatalog.Page.settings, eventId: AppAnalyticsCatalog.EventId.settingsAbout, elementType: "list_item", elementName: "关于")
+    }
+
     func trackSettingsLogoutConfirm() {
         trackClick(page: AppAnalyticsCatalog.Page.settings, eventId: AppAnalyticsCatalog.EventId.settingsLogout, elementType: "button", elementName: "确认退出")
     }
@@ -149,6 +174,14 @@ extension AppViewModel {
 
     func trackPageViewThemeSettings() {
         trackAnalyticsPageView(page: AppAnalyticsCatalog.Page.themeSettings, fromPage: AppAnalyticsCatalog.Page.settings)
+    }
+
+    func trackPageViewHelpFeedback() {
+        trackAnalyticsPageView(page: AppAnalyticsCatalog.Page.helpFeedback, fromPage: AppAnalyticsCatalog.Page.settings)
+    }
+
+    func trackPageViewAbout() {
+        trackAnalyticsPageView(page: AppAnalyticsCatalog.Page.about, fromPage: AppAnalyticsCatalog.Page.settings)
     }
 
     // MARK: - 存储

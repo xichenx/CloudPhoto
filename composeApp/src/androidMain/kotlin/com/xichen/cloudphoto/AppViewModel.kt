@@ -12,24 +12,37 @@ import com.xichen.cloudphoto.core.di.AppContainerHolder
 import com.xichen.cloudphoto.core.error.ErrorHandler
 import com.xichen.cloudphoto.core.theme.ThemeMode
 import com.xichen.cloudphoto.core.theme.ThemeRepository
+import com.xichen.cloudphoto.core.ToastType
 import com.xichen.cloudphoto.core.logger.DiagnosticLogging
 import com.xichen.cloudphoto.core.logger.Log
+import com.xichen.cloudphoto.core.logger.RemoteLogUploadScheduler
+import com.xichen.cloudphoto.core.logger.UploadDiagnosticLogsOutcome
 import com.xichen.cloudphoto.service.AlbumService
 import com.xichen.cloudphoto.service.AuthService
 import com.xichen.cloudphoto.service.ConfigApiService
 import com.xichen.cloudphoto.service.ConfigService
+import com.xichen.cloudphoto.service.FeedbackApiService
 import com.xichen.cloudphoto.service.PhotoService
+import com.xichen.cloudphoto.service.UserPushPreferenceApiService
 import com.xichen.cloudphoto.core.auth.TokenManager
 import com.xichen.cloudphoto.core.network.*
 import com.xichen.cloudphoto.model.*
 import com.xichen.cloudphoto.navigation.Screen
 import com.xichen.cloudphoto.push.PushRegistrationAndroid
+import com.xichen.cloudphoto.widget.HomeWidgetUpdater
+import com.xichen.cloudphoto.widget.WidgetContract
+import com.xichen.cloudphoto.widget.WidgetSnapshotSync
 import com.xichen.cloudphoto.push.pushInstallId
 import com.xichen.cloudphoto.navigation.toAnalyticsPage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+
+data class LogUploadUiEvent(
+    val message: String,
+    val type: ToastType,
+)
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
     // 使用依赖注入容器（传递 Application Context）
@@ -53,7 +66,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val photoService: PhotoService = container.photoService
     private val albumService: AlbumService = container.albumService
     private val authService: AuthService = container.authService
-    
+    private val feedbackApiService: FeedbackApiService = container.feedbackApiService
+    private val userPushPreferenceApiService: UserPushPreferenceApiService =
+        container.userPushPreferenceApiService
+
     // Token管理器 - 使用容器中的 TokenManager（统一管理）
     private val tokenManager: TokenManager = container.tokenManager
     
@@ -86,8 +102,167 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _themeMode = MutableStateFlow(ThemeMode.SYSTEM)
     val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
 
+    private val _feedbackSubmitting = MutableStateFlow(false)
+    val feedbackSubmitting: StateFlow<Boolean> = _feedbackSubmitting.asStateFlow()
+
+    private val _feedbackSuccess = MutableStateFlow(false)
+    val feedbackSuccess: StateFlow<Boolean> = _feedbackSuccess.asStateFlow()
+
+    private val _feedbackError = MutableStateFlow<String?>(null)
+    val feedbackError: StateFlow<String?> = _feedbackError.asStateFlow()
+
+    private val _diagnosticLogUploading = MutableStateFlow(false)
+    val diagnosticLogUploading: StateFlow<Boolean> = _diagnosticLogUploading.asStateFlow()
+
+    private val _logUploadUi = MutableStateFlow<LogUploadUiEvent?>(null)
+    val logUploadUi: StateFlow<LogUploadUiEvent?> = _logUploadUi.asStateFlow()
+
+    /** 云端是否向本账号下发推送（与系统通知权限无关）；`null` 表示尚未加载成功。 */
+    private val _cloudPushEnabled = MutableStateFlow<Boolean?>(null)
+    val cloudPushEnabled: StateFlow<Boolean?> = _cloudPushEnabled.asStateFlow()
+
+    private val _cloudPushPreferenceLoading = MutableStateFlow(false)
+    val cloudPushPreferenceLoading: StateFlow<Boolean> = _cloudPushPreferenceLoading.asStateFlow()
+
+    private val _cloudPushPreferenceSaving = MutableStateFlow(false)
+    val cloudPushPreferenceSaving: StateFlow<Boolean> = _cloudPushPreferenceSaving.asStateFlow()
+
+    private val _pushPreferenceUi = MutableStateFlow<LogUploadUiEvent?>(null)
+    val pushPreferenceUi: StateFlow<LogUploadUiEvent?> = _pushPreferenceUi.asStateFlow()
+
+    /** Widget / deep link: navigate to main tab when user opens `cloudphoto://…`. */
+    private val _pendingMainTabRoute = MutableStateFlow<String?>(null)
+    val pendingMainTabRoute: StateFlow<String?> = _pendingMainTabRoute.asStateFlow()
+
+    fun clearPendingMainTabRoute() {
+        _pendingMainTabRoute.value = null
+    }
+
+    fun handleWidgetDeepLinkFromIntent(intent: android.content.Intent?) {
+        val uri = intent?.data ?: return
+        if (uri.scheme != WidgetContract.DEEP_LINK_SCHEME) return
+        when (uri.host) {
+            WidgetContract.DEEP_LINK_HOST_PHOTOS -> _pendingMainTabRoute.value = Screen.Photos.route
+            WidgetContract.DEEP_LINK_HOST_CAMERA -> _pendingMainTabRoute.value = Screen.Camera.route
+        }
+    }
+
+    fun clearLogUploadUi() {
+        _logUploadUi.value = null
+    }
+
+    fun clearPushPreferenceUi() {
+        _pushPreferenceUi.value = null
+    }
+
+    /**
+     * 从服务端拉取云端推送开关（需登录）。
+     */
+    fun loadCloudPushPreference() {
+        viewModelScope.launch {
+            if (!tokenManager.isLoggedIn()) {
+                _cloudPushEnabled.value = null
+                _pushPreferenceUi.value = LogUploadUiEvent("请先登录", ToastType.WARNING)
+                return@launch
+            }
+            _cloudPushPreferenceLoading.value = true
+            val (value, err) = userPushPreferenceApiService.loadOutcome()
+            _cloudPushPreferenceLoading.value = false
+            if (value != null) {
+                _cloudPushEnabled.value = value
+            } else {
+                _cloudPushEnabled.value = null
+                _pushPreferenceUi.value = LogUploadUiEvent(
+                    err ?: "加载失败",
+                    ToastType.ERROR,
+                )
+            }
+        }
+    }
+
+    /**
+     * 更新服务端云端推送开关（需登录）。
+     */
+    fun setCloudPushEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            if (!tokenManager.isLoggedIn()) {
+                _pushPreferenceUi.value = LogUploadUiEvent("请先登录", ToastType.WARNING)
+                return@launch
+            }
+            val previous = _cloudPushEnabled.value
+            _cloudPushPreferenceSaving.value = true
+            container.analyticsTracker.click(
+                page = AnalyticsPages.NOTIFICATION_SETTINGS,
+                elementId = AnalyticsEventIds.NOTIFICATION_CLOUD_PUSH_TOGGLE,
+                elementType = "switch",
+                elementName = if (enabled) "开启云端推送" else "关闭云端推送",
+            )
+            val (ok, msg) = userPushPreferenceApiService.updateOutcome(enabled)
+            _cloudPushPreferenceSaving.value = false
+            if (ok) {
+                _cloudPushEnabled.value = enabled
+                _pushPreferenceUi.value = LogUploadUiEvent("已保存", ToastType.SUCCESS)
+            } else {
+                _cloudPushEnabled.value = previous
+                _pushPreferenceUi.value = LogUploadUiEvent(
+                    msg ?: "保存失败",
+                    ToastType.ERROR,
+                )
+            }
+        }
+    }
+
+    /**
+     * 将本地队列中的诊断日志全部上传（需登录；与 [RemoteLogConfig.periodicRemoteUploadEnabled] 独立）。
+     */
+    fun uploadDiagnosticLogsNow() {
+        viewModelScope.launch {
+            if (!tokenManager.isLoggedIn()) {
+                _logUploadUi.value = LogUploadUiEvent("请先登录", ToastType.WARNING)
+                return@launch
+            }
+            _diagnosticLogUploading.value = true
+            val outcome = RemoteLogUploadScheduler.uploadDiagnosticLogsNow()
+            _diagnosticLogUploading.value = false
+            _logUploadUi.value = when (outcome.code) {
+                UploadDiagnosticLogsOutcome.CODE_UPLOADED ->
+                    LogUploadUiEvent("诊断日志已上传", ToastType.SUCCESS)
+                UploadDiagnosticLogsOutcome.CODE_NO_PENDING ->
+                    LogUploadUiEvent("暂无待上传日志", ToastType.INFO)
+                UploadDiagnosticLogsOutcome.CODE_ERROR ->
+                    LogUploadUiEvent(outcome.message ?: "上传失败", ToastType.ERROR)
+                else ->
+                    LogUploadUiEvent("上传失败", ToastType.ERROR)
+            }
+        }
+    }
+
     fun clearChangePasswordSuccess() {
         _changePasswordSuccess.value = false
+    }
+
+    fun clearFeedbackUiState() {
+        _feedbackSuccess.value = false
+        _feedbackError.value = null
+    }
+
+    /**
+     * 提交用户反馈（需已登录；分类：`bug` / `suggestion` / `general`）。
+     * 用户标识由服务端根据 Token 解析，无需客户端填写联系方式。
+     */
+    fun submitFeedback(content: String, category: String) {
+        viewModelScope.launch {
+            _feedbackSubmitting.value = true
+            _feedbackError.value = null
+            _feedbackSuccess.value = false
+            val (ok, msg) = feedbackApiService.submitOutcome(content, category)
+            _feedbackSubmitting.value = false
+            if (ok) {
+                _feedbackSuccess.value = true
+            } else {
+                _feedbackError.value = msg
+            }
+        }
     }
 
     fun setThemeMode(mode: ThemeMode) {
@@ -107,6 +282,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             loadPhotos()
             loadConfigs()
             PushRegistrationAndroid.sync(getApplication())
+        } else {
+            viewModelScope.launch {
+                WidgetSnapshotSync.publishFromPhotos(emptyList(), false, getApplication())
+                HomeWidgetUpdater.updateAll(getApplication())
+            }
         }
     }
     
@@ -325,44 +505,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
     
     /**
-     * Mock 登录 - 用于开发和测试，直接设置登录状态和 mock 用户数据
-     */
-    fun mockLogin() {
-        viewModelScope.launch {
-            // 创建 mock 用户数据
-            val mockUser = UserDTO(
-                id = "mock_user_001",
-                username = "测试用户",
-                email = "test@example.com",
-                phone = "13800138000",
-                role = "user",
-                avatar = null,
-                createdAt = System.currentTimeMillis()
-            )
-            
-            // 保存 mock token（仅用于本地状态，不会发送到服务器）
-            tokenManager.saveAccessToken("mock_access_token_${System.currentTimeMillis()}")
-            tokenManager.saveRefreshToken("mock_refresh_token_${System.currentTimeMillis()}")
-            
-            // 设置用户信息和登录状态
-            _currentUser.value = mockUser
-            _isLoggedIn.value = true
-            notifyAuthSessionStarted()
-
-            // 保存登录状态到SharedPreferences
-            val prefs = getApplication<Application>().getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
-            prefs.edit().putBoolean("is_logged_in", true).apply()
-
-            Log.i("AppViewModel", "Mock login successful: ${mockUser.username}")
-            
-            // 加载数据
-            loadPhotos()
-            loadConfigs()
-            PushRegistrationAndroid.sync(getApplication())
-        }
-    }
-    
-    /**
      * 用户登出
      */
     fun logout() {
@@ -390,12 +532,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             // 清除登录状态
             val prefs = getApplication<Application>().getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
             prefs.edit().putBoolean("is_logged_in", false).apply()
+
+            WidgetSnapshotSync.publishFromPhotos(emptyList(), false, getApplication())
+            HomeWidgetUpdater.updateAll(getApplication())
         }
     }
     
     fun loadPhotos() {
         viewModelScope.launch {
             _photos.value = photoService.getAllPhotos()
+            WidgetSnapshotSync.publishFromPhotos(_photos.value, _isLoggedIn.value, getApplication())
+            HomeWidgetUpdater.updateAll(getApplication())
         }
     }
     

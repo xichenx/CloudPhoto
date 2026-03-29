@@ -46,6 +46,23 @@ fun MainScreen(
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Photos.route
 
+        val pendingMainTabRoute by viewModel.pendingMainTabRoute.collectAsState()
+        LaunchedEffect(pendingMainTabRoute, isLoggedIn) {
+            val route = pendingMainTabRoute ?: return@LaunchedEffect
+            if (!isLoggedIn) {
+                viewModel.clearPendingMainTabRoute()
+                return@LaunchedEffect
+            }
+            viewModel.clearPendingMainTabRoute()
+            navController.navigate(route) {
+                popUpTo(navController.graph.startDestinationId) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+
         LaunchedEffect(currentRoute, isLoggedIn) {
             if (!isLoggedIn) {
                 previousAnalyticsPage = null

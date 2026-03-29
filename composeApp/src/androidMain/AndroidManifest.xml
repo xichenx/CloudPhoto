@@ -22,13 +22,39 @@
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity
             android:exported="true"
+            android:launchMode="singleTop"
             android:name=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="photos"
+                    android:scheme="cloudphoto" />
+                <data
+                    android:host="camera"
+                    android:scheme="cloudphoto" />
+            </intent-filter>
         </activity>
+
+        <receiver
+            android:name=".widget.CloudPhotoGlanceWidgetReceiver"
+            android:exported="true"
+            android:label="@string/cloud_photo_widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/cloud_photo_widget_info" />
+        </receiver>
 
         <provider
             android:name="androidx.core.content.FileProvider"

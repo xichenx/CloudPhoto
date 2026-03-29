@@ -17,9 +17,26 @@ class AppViewModel: ObservableObject {
     /// 修改密码成功（单次，UI 消费后调用 clearChangePasswordSuccess）
     @Published var changePasswordSuccess: Bool = false
 
+    @Published var feedbackSubmitting: Bool = false
+    @Published var feedbackSuccess: Bool = false
+    @Published var feedbackError: String? = nil
+
+    @Published var diagnosticLogUploading: Bool = false
+    @Published var diagnosticLogToast: String?
+    @Published var diagnosticLogToastType: ToastType = .info
+
+    /// 云端是否下发推送；`nil` 表示未加载成功
+    @Published var cloudPushEnabled: Bool? = nil
+    @Published var cloudPushPreferenceLoading: Bool = false
+    @Published var cloudPushPreferenceSaving: Bool = false
+    @Published var pushPreferenceToast: String?
+    @Published var pushPreferenceToastType: ToastType = .info
+
     private let photoService: PhotoService
     private let configService: ConfigService
     private let authService: AuthService
+    private let feedbackApiService: FeedbackApiService
+    private let userPushPreferenceApiService: UserPushPreferenceApiService
     private let tokenManager: TokenManager
     /// `internal`：供 `AppViewModel+Analytics` 扩展使用。
     let analyticsTracker: AnalyticsTracker
@@ -31,6 +48,8 @@ class AppViewModel: ObservableObject {
         self.photoService = container.photoService
         self.configService = container.configService
         self.authService = container.authService
+        self.feedbackApiService = container.feedbackApiService
+        self.userPushPreferenceApiService = container.userPushPreferenceApiService
         self.tokenManager = TokenManager(context: nil)
         self.analyticsTracker = container.analyticsTracker
 
@@ -39,6 +58,9 @@ class AppViewModel: ObservableObject {
             loadPhotos()
             loadConfigs()
             IosPushRegistration.shared.syncApnsTokenAfterLogin(tokenHex: AppDelegate.pendingApnsTokenHex)
+        } else {
+            WidgetSnapshotSync.shared.publishFromPhotos(photos: [], isLoggedIn: false, platformContext: nil)
+            WidgetTimelineReloader.reloadRecentPhotos()
         }
     }
 
@@ -52,6 +74,8 @@ class AppViewModel: ObservableObject {
         Task {
             do {
                 photos = try await photoService.getAllPhotos()
+                WidgetSnapshotSync.shared.publishFromPhotos(photos: photos, isLoggedIn: isLoggedIn, platformContext: nil)
+                WidgetTimelineReloader.reloadRecentPhotos()
             } catch {
                 print("Error loading photos: \(error)")
             }
@@ -204,28 +228,6 @@ class AppViewModel: ObservableObject {
         }
     }
 
-    /// Mock 登录（开发测试用）
-    func mockLogin() {
-        authError = nil
-        let mockUser = UserDTO(
-            id: "mock_user_001",
-            username: "测试用户",
-            email: "test@example.com",
-            phone: "13800138000",
-            role: "user",
-            avatar: nil,
-            createdAt: KotlinLong(value: Int64(Date().timeIntervalSince1970 * 1000))
-        )
-        tokenManager.saveAccessToken(token: "mock_access_token_\(Int64(Date().timeIntervalSince1970))")
-        tokenManager.saveRefreshToken(token: "mock_refresh_token_\(Int64(Date().timeIntervalSince1970))")
-        currentUser = mockUser
-        isLoggedIn = true
-        notifyAuthSessionStarted()
-        loadPhotos()
-        loadConfigs()
-        IosPushRegistration.shared.syncApnsTokenAfterLogin(tokenHex: AppDelegate.pendingApnsTokenHex)
-    }
-
     /// 登出
     func logout() {
         IosPushRegistration.shared.unregisterOnLogout {
@@ -246,11 +248,156 @@ class AppViewModel: ObservableObject {
         AnalyticsSession.shared.refresh()
         currentUser = nil
         isLoggedIn = false
+        WidgetSnapshotSync.shared.publishFromPhotos(photos: [], isLoggedIn: false, platformContext: nil)
+        WidgetTimelineReloader.reloadRecentPhotos()
     }
 
     /// 清除认证错误（UI 展示 Toast 后调用）
     func clearAuthError() {
         authError = nil
+    }
+
+    func clearFeedbackUiState() {
+        feedbackSuccess = false
+        feedbackError = nil
+    }
+
+    func clearDiagnosticLogToast() {
+        diagnosticLogToast = nil
+    }
+
+    func clearPushPreferenceToast() {
+        pushPreferenceToast = nil
+    }
+
+    /// 从服务端加载云端推送开关（需登录）。
+    func loadCloudPushPreference() {
+        guard isLoggedIn else {
+            cloudPushEnabled = nil
+            pushPreferenceToast = "请先登录"
+            pushPreferenceToastType = .warning
+            return
+        }
+        cloudPushPreferenceLoading = true
+        Task {
+            do {
+                let outcome = try await userPushPreferenceApiService.loadOutcome()
+                await MainActor.run {
+                    cloudPushPreferenceLoading = false
+                    if let v = outcome.first {
+                        cloudPushEnabled = v.boolValue
+                    } else {
+                        cloudPushEnabled = nil
+                        pushPreferenceToast = outcome.second.map { String(describing: $0) } ?? "加载失败"
+                        pushPreferenceToastType = .error
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    cloudPushPreferenceLoading = false
+                    cloudPushEnabled = nil
+                    pushPreferenceToast = error.localizedDescription
+                    pushPreferenceToastType = .error
+                }
+            }
+        }
+    }
+
+    /// 更新云端推送开关（需登录）。
+    func setCloudPushEnabled(_ enabled: Bool) {
+        guard isLoggedIn else {
+            pushPreferenceToast = "请先登录"
+            pushPreferenceToastType = .warning
+            return
+        }
+        let previous = cloudPushEnabled
+        cloudPushPreferenceSaving = true
+        trackNotificationCloudPushToggle(enabled: enabled)
+        Task {
+            do {
+                let outcome = try await userPushPreferenceApiService.updateOutcome(pushEnabled: enabled)
+                await MainActor.run {
+                    cloudPushPreferenceSaving = false
+                    if outcome.first?.boolValue == true {
+                        cloudPushEnabled = enabled
+                        pushPreferenceToast = "已保存"
+                        pushPreferenceToastType = .success
+                    } else {
+                        cloudPushEnabled = previous
+                        pushPreferenceToast = outcome.second.map { String(describing: $0) } ?? "保存失败"
+                        pushPreferenceToastType = .error
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    cloudPushPreferenceSaving = false
+                    cloudPushEnabled = previous
+                    pushPreferenceToast = error.localizedDescription
+                    pushPreferenceToastType = .error
+                }
+            }
+        }
+    }
+
+    /// 主动上传本机诊断日志队列（需登录；与后台定时上传开关独立）。
+    func uploadDiagnosticLogsNow() {
+        guard isLoggedIn else {
+            diagnosticLogToast = "请先登录"
+            diagnosticLogToastType = .warning
+            return
+        }
+        diagnosticLogUploading = true
+        Task {
+            do {
+                let outcome = try await RemoteLogUploadScheduler.shared.uploadDiagnosticLogsNow()
+                await MainActor.run {
+                    diagnosticLogUploading = false
+                    // 与 KMP [UploadDiagnosticLogsOutcome] CODE_* 常量一致
+                    let code = Int(outcome.code)
+                    if code == 0 {
+                        diagnosticLogToast = "诊断日志已上传"
+                        diagnosticLogToastType = .success
+                    } else if code == 1 {
+                        diagnosticLogToast = "暂无待上传日志"
+                        diagnosticLogToastType = .info
+                    } else {
+                        diagnosticLogToast = outcome.message ?? "上传失败"
+                        diagnosticLogToastType = .error
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    diagnosticLogUploading = false
+                    diagnosticLogToast = error.localizedDescription
+                    diagnosticLogToastType = .error
+                }
+            }
+        }
+    }
+
+    /// 提交用户反馈（需已登录；分类：`bug` / `suggestion` / `general`）。身份由服务端根据 Token 解析。
+    func submitFeedback(content: String, category: String) {
+        feedbackSubmitting = true
+        feedbackError = nil
+        feedbackSuccess = false
+        Task {
+            do {
+                let outcome = try await feedbackApiService.submitOutcome(content: content, category: category)
+                await MainActor.run {
+                    feedbackSubmitting = false
+                    if outcome.first?.boolValue == true {
+                        feedbackSuccess = true
+                    } else if let msg = outcome.second {
+                        feedbackError = String(describing: msg)
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    feedbackSubmitting = false
+                    feedbackError = error.localizedDescription
+                }
+            }
+        }
     }
 
     /// 修改密码成功标志清零（UI 消费后调用）
