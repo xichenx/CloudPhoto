@@ -73,7 +73,11 @@ class AppViewModel: ObservableObject {
     func loadPhotos() {
         Task {
             do {
-                photos = try await photoService.getAllPhotos()
+                if isLoggedIn {
+                    photos = try await photoService.fetchTimelineFromCloud()
+                } else {
+                    photos = []
+                }
                 WidgetSnapshotSync.shared.publishFromPhotos(photos: photos, isLoggedIn: isLoggedIn, platformContext: nil)
                 WidgetTimelineReloader.reloadRecentPhotos()
             } catch {

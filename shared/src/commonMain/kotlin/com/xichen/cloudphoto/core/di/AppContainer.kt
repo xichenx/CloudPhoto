@@ -96,9 +96,14 @@ class AppContainer(context: Any? = null) {
     val configService: ConfigService by lazy {
         ConfigService(configRepository)
     }
-    
+
+    /** 照片 API（需鉴权）；供 [photoService] 拉取云端时间线等使用。 */
+    val photoApiService: PhotoApiService by lazy {
+        PhotoApiService(authorizedApiHttpClient.value)
+    }
+
     val photoService: PhotoService by lazy {
-        PhotoService(photoRepository, configRepository, httpClient)
+        PhotoService(photoRepository, configRepository, httpClient, photoApiService)
     }
     
     val albumService: AlbumService by lazy {
@@ -117,11 +122,6 @@ class AppContainer(context: Any? = null) {
             tokenManagerProvider = { tokenManager },
             authServiceProvider = { authService }
         )
-    }
-    
-    /** 照片 API 服务（调用后端 API） */
-    val photoApiService: PhotoApiService by lazy {
-        PhotoApiService(authorizedApiHttpClient.value)
     }
     
     /** 相册 API 服务（调用后端 API） */

@@ -588,7 +588,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     
     fun loadPhotos() {
         viewModelScope.launch {
-            _photos.value = photoService.getAllPhotos()
+            _photos.value = if (_isLoggedIn.value) {
+                photoService.fetchTimelineFromCloud()
+            } else {
+                emptyList()
+            }
             WidgetSnapshotSync.publishFromPhotos(_photos.value, _isLoggedIn.value, getApplication())
             HomeWidgetUpdater.updateAll(getApplication())
         }
