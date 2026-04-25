@@ -24,12 +24,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.xichen.cloudphoto.AppViewModel
+import com.xichen.cloudphoto.core.ToastType
+import com.xichen.cloudphoto.core.rememberToast
 import com.xichen.cloudphoto.analytics.AnalyticsEventIds
 import com.xichen.cloudphoto.analytics.AnalyticsPages
 import com.xichen.cloudphoto.model.StorageConfig
 import com.xichen.cloudphoto.navigation.Screen
 import com.xichen.cloudphoto.model.StorageProvider
-import kotlinx.datetime.Clock
 
 /**
  * 空间管理 Screen - 管理存储配置
@@ -42,6 +43,38 @@ fun StorageScreen(
 ) {
     val configs by viewModel.configs.collectAsState()
     val defaultConfig by viewModel.defaultConfig.collectAsState()
+    val toast = rememberToast()
+
+    fun navigateToAddStorageConfigIfAuthed(trackElementName: String) {
+        if (!viewModel.hasCloudAuthToken()) {
+            toast("添加云端存储配置需要先登录", ToastType.WARNING)
+            viewModel.clearLocalSessionAndShowLoginUi()
+            return
+        }
+        viewModel.trackClick(
+            page = AnalyticsPages.STORAGE,
+            eventId = AnalyticsEventIds.STORAGE_ADD_CONFIG,
+            elementType = "button",
+            elementName = trackElementName
+        )
+        navController.navigate(Screen.AddStorageConfig.route)
+    }
+
+    fun navigateToEditStorageConfigIfAuthed(config: StorageConfig) {
+        if (!viewModel.hasCloudAuthToken()) {
+            toast("编辑云端存储配置需要先登录", ToastType.WARNING)
+            viewModel.clearLocalSessionAndShowLoginUi()
+            return
+        }
+        viewModel.trackClick(
+            page = AnalyticsPages.STORAGE,
+            eventId = AnalyticsEventIds.STORAGE_EDIT_CONFIG,
+            elementType = "button",
+            elementName = "编辑配置",
+            extra = """{"configId":"${config.id}"}"""
+        )
+        navController.navigate(Screen.EditStorageConfig.createRoute(config.id))
+    }
 
     Scaffold(
         topBar = {
@@ -60,13 +93,7 @@ fun StorageScreen(
                 ),
                 actions = {
                     IconButton(onClick = {
-                        viewModel.trackClick(
-                            page = AnalyticsPages.STORAGE,
-                            eventId = AnalyticsEventIds.STORAGE_ADD_CONFIG,
-                            elementType = "button",
-                            elementName = "添加存储配置"
-                        )
-                        navController.navigate(Screen.AddStorageConfig.route)
+                        navigateToAddStorageConfigIfAuthed("添加存储配置")
                     }) {
                         Icon(
                             imageVector = Icons.Default.Add,
@@ -112,13 +139,7 @@ fun StorageScreen(
                     EmptyStorageCard(
                         modifier = Modifier.fillMaxWidth(),
                         onAddClick = {
-                            viewModel.trackClick(
-                                page = AnalyticsPages.STORAGE,
-                                eventId = AnalyticsEventIds.STORAGE_ADD_CONFIG,
-                                elementType = "button",
-                                elementName = "添加首个配置"
-                            )
-                            navController.navigate(Screen.AddStorageConfig.route)
+                            navigateToAddStorageConfigIfAuthed("添加首个配置")
                         }
                     )
                 }
@@ -130,16 +151,7 @@ fun StorageScreen(
                         isDefault = config.id == defaultConfig?.id,
                         onSetDefault = { viewModel.setDefaultConfig(config.id) },
                         onDelete = { viewModel.deleteConfig(config.id) },
-                        onEdit = {
-                            viewModel.trackClick(
-                                page = AnalyticsPages.STORAGE,
-                                eventId = AnalyticsEventIds.STORAGE_EDIT_CONFIG,
-                                elementType = "button",
-                                elementName = "编辑配置",
-                                extra = """{"configId":"${config.id}"}"""
-                            )
-                            navController.navigate(Screen.EditStorageConfig.createRoute(config.id))
-                        },
+                        onEdit = { navigateToEditStorageConfigIfAuthed(config) },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }

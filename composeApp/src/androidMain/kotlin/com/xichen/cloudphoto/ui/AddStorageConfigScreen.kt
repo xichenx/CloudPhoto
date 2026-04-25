@@ -19,6 +19,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.xichen.cloudphoto.AppViewModel
+import com.xichen.cloudphoto.core.ToastType
+import com.xichen.cloudphoto.core.rememberToast
 import com.xichen.cloudphoto.model.StorageConfig
 import com.xichen.cloudphoto.model.StorageProvider
 import kotlinx.datetime.Clock
@@ -46,26 +48,47 @@ fun AddStorageConfigScreen(
     var region by remember { mutableStateOf(configToEdit?.region ?: "") }
     var isDefault by remember { mutableStateOf(configToEdit?.isDefault ?: false) }
 
-    fun saveIfValid() {
-        if (name.isNotEmpty() && endpoint.isNotEmpty() &&
-            accessKeyId.isNotEmpty() && accessKeySecret.isNotEmpty() &&
-            bucketName.isNotEmpty()
-        ) {
-            val config = StorageConfig(
-                id = configToEdit?.id ?: "${Clock.System.now().epochSeconds}_${(0..999999).random()}",
-                name = name,
-                provider = provider,
-                endpoint = endpoint,
-                accessKeyId = accessKeyId,
-                accessKeySecret = accessKeySecret,
-                bucketName = bucketName,
-                region = region.ifEmpty { null },
-                isDefault = isDefault,
-                createdAt = configToEdit?.createdAt ?: Clock.System.now().epochSeconds
-            )
-            viewModel.saveConfig(config)
-            navController.popBackStack()
+    val toast = rememberToast()
+
+    LaunchedEffect(Unit) {
+        if (!viewModel.hasCloudAuthToken()) {
+            toast("添加云端存储配置需要先登录", ToastType.WARNING)
+            viewModel.clearLocalSessionAndShowLoginUi()
         }
+    }
+
+    fun saveIfValid() {
+        if (!viewModel.hasCloudAuthToken()) {
+            toast("登录已失效，请重新登录后再保存", ToastType.WARNING)
+            viewModel.clearLocalSessionAndShowLoginUi()
+            return
+        }
+        val missing = buildList {
+            if (endpoint.isBlank()) add("Endpoint")
+            if (accessKeyId.isBlank()) add("Access Key ID")
+            if (accessKeySecret.isBlank()) add("Access Key Secret")
+            if (bucketName.isBlank()) add("Bucket 名称")
+        }
+        if (missing.isNotEmpty()) {
+            toast("请填写：${missing.joinToString("、")}", ToastType.WARNING)
+            return
+        }
+        // 配置名称未填时用 Bucket 作为展示名，避免校验静默失败导致未调用保存接口
+        val resolvedName = name.trim().ifEmpty { bucketName.trim() }
+        val config = StorageConfig(
+            id = configToEdit?.id ?: "${Clock.System.now().epochSeconds}_${(0..999999).random()}",
+            name = resolvedName,
+            provider = provider,
+            endpoint = endpoint.trim(),
+            accessKeyId = accessKeyId.trim(),
+            accessKeySecret = accessKeySecret.trim(),
+            bucketName = bucketName.trim(),
+            region = region.ifBlank { null },
+            isDefault = isDefault,
+            createdAt = configToEdit?.createdAt ?: Clock.System.now().epochSeconds
+        )
+        viewModel.saveConfig(config)
+        navController.popBackStack()
     }
 
     Scaffold(

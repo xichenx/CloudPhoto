@@ -8,6 +8,7 @@ import io.ktor.client.request.forms.*
 import io.ktor.http.*
 import io.ktor.http.content.*
 import io.ktor.utils.io.*
+import io.ktor.utils.io.core.writeFully
 import kotlinx.serialization.Serializable
 
 /**
@@ -88,21 +89,21 @@ class PhotoApiService(
         takenAt: Long? = null
     ): ApiResult<PhotoDTO> {
         return try {
-            val response = httpClient.post<ApiResponse<PhotoDTO>>("/api/photos/upload") {
+            val safeName = fileName.trim().ifEmpty { "upload.jpg" }
+            val parsedContentType = runCatching { ContentType.parse(contentType) }
+                .getOrDefault(ContentType.Application.OctetStream)
+            val response = httpClient.postMultipart<ApiResponse<PhotoDTO>>("/api/photos/upload") {
                 setBody(
                     MultiPartFormDataContent(
                         formData {
                             append(
                                 key = "file",
-                                value = photoData,
-                                headers = Headers.build {
-                                    append(HttpHeaders.ContentType, contentType)
-                                    append(
-                                        HttpHeaders.ContentDisposition,
-                                        "form-data; name=\"file\"; filename=\"$fileName\""
-                                    )
-                                }
-                            )
+                                filename = safeName,
+                                contentType = parsedContentType,
+                                size = photoData.size.toLong()
+                            ) {
+                                writeFully(photoData)
+                            }
                             albumId?.let { append("albumId", it) }
                             takenAt?.let { append("takenAt", it.toString()) }
                         }

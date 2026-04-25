@@ -1,6 +1,7 @@
 package com.xichen.cloudphoto.core.di
 
 import com.xichen.cloudphoto.core.auth.TokenManager
+import com.xichen.cloudphoto.core.auth.TokenRefresher
 import com.xichen.cloudphoto.core.config.ApiConfig
 import com.xichen.cloudphoto.core.network.NetworkClientFactory
 import com.xichen.cloudphoto.core.network.NetworkConfig
@@ -108,6 +109,14 @@ class AppContainer(context: Any? = null) {
     /** 认证服务（登录、注册、验证码等），baseUrl 由 shared ApiConfig 统一配置 */
     val authService: AuthService by lazy {
         AuthService(authApiHttpClient.value)
+    }
+
+    init {
+        // Install silent refresh hooks for network layer (KMP-safe).
+        TokenRefresher.install(
+            tokenManagerProvider = { tokenManager },
+            authServiceProvider = { authService }
+        )
     }
     
     /** 照片 API 服务（调用后端 API） */

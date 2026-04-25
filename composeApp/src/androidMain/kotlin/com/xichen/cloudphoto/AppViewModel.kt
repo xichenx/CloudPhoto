@@ -25,6 +25,8 @@ import com.xichen.cloudphoto.service.FeedbackApiService
 import com.xichen.cloudphoto.service.PhotoService
 import com.xichen.cloudphoto.service.UserPushPreferenceApiService
 import com.xichen.cloudphoto.core.auth.TokenManager
+import com.xichen.cloudphoto.core.auth.AuthEvent
+import com.xichen.cloudphoto.core.auth.AuthEvents
 import com.xichen.cloudphoto.core.network.*
 import com.xichen.cloudphoto.model.*
 import com.xichen.cloudphoto.navigation.Screen
@@ -276,6 +278,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _themeMode.value = themeRepository.getThemeMode()
         }
+        // Observe "unauthorized" events from network layer and force user back to login.
+        viewModelScope.launch {
+            AuthEvents.events.collect { e ->
+                if (e is AuthEvent.Unauthorized) {
+                    forceLogoutToLogin(e.message ?: "登录已失效，请重新登录")
+                }
+            }
+        }
         // 检查登录状态
         checkLoginStatus()
         if (_isLoggedIn.value) {
@@ -292,6 +302,44 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     
     private fun checkLoginStatus() {
         _isLoggedIn.value = tokenManager.isLoggedIn()
+    }
+
+    /**
+     * Whether the app currently has a usable cloud auth token (i.e., logged in).
+     */
+    fun hasCloudAuthToken(): Boolean {
+        return tokenManager.isLoggedIn()
+    }
+
+    /**
+     * Clear local auth session and switch UI to login screen.
+     * Used by screens that require auth, and by network "unauthorized" handler.
+     */
+    fun clearLocalSessionAndShowLoginUi(message: String? = null) {
+        forceLogoutToLogin(message)
+    }
+
+    private fun forceLogoutToLogin(message: String? = null) {
+        if (!_isLoggedIn.value && !tokenManager.isLoggedIn()) {
+            return
+        }
+        // Only perform local cleanup. Do NOT call logout endpoint, because token may already be invalid.
+        tokenManager.clearTokens()
+        container.analyticsTracker.clearPending()
+        AnalyticsSession.refresh()
+
+        _isLoggedIn.value = false
+        _currentUser.value = null
+        _authError.value = message
+
+        val prefs = getApplication<Application>()
+            .getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putBoolean("is_logged_in", false).apply()
+
+        viewModelScope.launch {
+            WidgetSnapshotSync.publishFromPhotos(emptyList(), false, getApplication())
+            HomeWidgetUpdater.updateAll(getApplication())
+        }
     }
 
     private fun notifyAuthSessionStarted() {

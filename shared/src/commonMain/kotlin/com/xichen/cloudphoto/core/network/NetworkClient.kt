@@ -1,6 +1,8 @@
 package com.xichen.cloudphoto.core.network
 
 import com.xichen.cloudphoto.core.auth.TokenManager
+import com.xichen.cloudphoto.core.auth.AuthEvents
+import com.xichen.cloudphoto.core.auth.TokenRefresher
 import com.xichen.cloudphoto.core.logger.Log
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -15,6 +17,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlin.PublishedApi
+
+/**
+ * 请求体模式（类比 Retrofit：默认 JSON，multipart 在接口处显式声明）。
+ *
+ * - [Json]：在发起请求前设置 `Content-Type: application/json`，便于 `setBody(@Serializable …)` 与 Android 上 ContentNegotiation 工作。
+ * - [Multipart]：不预设 JSON；在 `block` 里 `setBody(MultiPartFormDataContent(...))`，由 Ktor 设置 `multipart/form-data` 与 boundary。
+ */
+enum class HttpBodyMode {
+    Json,
+    Multipart
+}
 
 /**
  * 网络客户端配置
@@ -72,11 +85,12 @@ object NetworkClientFactory {
                     }
                 }
             }
-            
+
             // 默认请求头
             defaultRequest {
                 headers {
-                    append(HttpHeaders.ContentType, ContentType.Application.Json)
+                    // NOTE: Do NOT force Content-Type here.
+                    // Forcing `application/json` breaks multipart uploads (must be multipart/form-data + boundary).
                     append(HttpHeaders.Accept, ContentType.Application.Json)
                     
                     // Token 拦截器（自动添加 Authorization header）
@@ -100,14 +114,24 @@ object NetworkClientFactory {
 }
 
 @PublishedApi
-internal suspend fun failureResultFromResponse(response: io.ktor.client.statement.HttpResponse): ApiResult.Error {
+internal suspend fun failureResultFromResponse(
+    response: io.ktor.client.statement.HttpResponse
+): ApiResult.Error {
     val bodySnippet = runCatching { response.bodyAsText() }.getOrNull()
     val message = bodySnippet?.trim()?.takeIf { it.isNotEmpty() }
         ?: "${response.status.value} ${response.status.description}"
+    if (response.status == HttpStatusCode.Unauthorized || response.status == HttpStatusCode.Forbidden) {
+        AuthEvents.unauthorized(message)
+    }
     return ApiResult.Error(
         HttpResponseException(response.status, message),
         message
     )
+}
+
+@PublishedApi
+internal fun isUnauthorized(status: HttpStatusCode): Boolean {
+    return status == HttpStatusCode.Unauthorized || status == HttpStatusCode.Forbidden
 }
 
 /**
@@ -118,11 +142,23 @@ suspend inline fun <reified T> HttpClient.get(
     crossinline block: HttpRequestBuilder.() -> Unit = {}
 ): ApiResult<T> = withContext(Dispatchers.Default) {
     try {
-        val response = request(urlString) {
+        var response = request(urlString) {
             method = HttpMethod.Get
             block()
         }
+        if (!response.status.isSuccess() && isUnauthorized(response.status)) {
+            val refreshed = TokenRefresher.tryRefresh()
+            if (refreshed) {
+                response = request(urlString) {
+                    method = HttpMethod.Get
+                    block()
+                }
+            }
+        }
         if (!response.status.isSuccess()) {
+            if (isUnauthorized(response.status)) {
+                AuthEvents.unauthorized(runCatching { response.bodyAsText() }.getOrNull())
+            }
             return@withContext failureResultFromResponse(response)
         }
         ApiResult.Success(response.body())
@@ -133,14 +169,33 @@ suspend inline fun <reified T> HttpClient.get(
 
 suspend inline fun <reified T> HttpClient.post(
     urlString: String,
+    bodyMode: HttpBodyMode = HttpBodyMode.Json,
     crossinline block: HttpRequestBuilder.() -> Unit = {}
 ): ApiResult<T> = withContext(Dispatchers.Default) {
     try {
-        val response = request(urlString) {
+        var response = request(urlString) {
             method = HttpMethod.Post
+            if (bodyMode == HttpBodyMode.Json) {
+                contentType(ContentType.Application.Json)
+            }
             block()
         }
+        if (!response.status.isSuccess() && isUnauthorized(response.status)) {
+            val refreshed = TokenRefresher.tryRefresh()
+            if (refreshed) {
+                response = request(urlString) {
+                    method = HttpMethod.Post
+                    if (bodyMode == HttpBodyMode.Json) {
+                        contentType(ContentType.Application.Json)
+                    }
+                    block()
+                }
+            }
+        }
         if (!response.status.isSuccess()) {
+            if (isUnauthorized(response.status)) {
+                AuthEvents.unauthorized(runCatching { response.bodyAsText() }.getOrNull())
+            }
             return@withContext failureResultFromResponse(response)
         }
         ApiResult.Success(response.body())
@@ -154,14 +209,33 @@ suspend inline fun <reified T> HttpClient.post(
  */
 suspend inline fun HttpClient.postUnit(
     urlString: String,
+    bodyMode: HttpBodyMode = HttpBodyMode.Json,
     crossinline block: HttpRequestBuilder.() -> Unit = {}
 ): ApiResult<Unit> = withContext(Dispatchers.Default) {
     try {
-        val response = request(urlString) {
+        var response = request(urlString) {
             method = HttpMethod.Post
+            if (bodyMode == HttpBodyMode.Json) {
+                contentType(ContentType.Application.Json)
+            }
             block()
         }
+        if (!response.status.isSuccess() && isUnauthorized(response.status)) {
+            val refreshed = TokenRefresher.tryRefresh()
+            if (refreshed) {
+                response = request(urlString) {
+                    method = HttpMethod.Post
+                    if (bodyMode == HttpBodyMode.Json) {
+                        contentType(ContentType.Application.Json)
+                    }
+                    block()
+                }
+            }
+        }
         if (!response.status.isSuccess()) {
+            if (isUnauthorized(response.status)) {
+                AuthEvents.unauthorized(runCatching { response.bodyAsText() }.getOrNull())
+            }
             return@withContext failureResultFromResponse(response)
         }
         ApiResult.Success(Unit)
@@ -172,14 +246,33 @@ suspend inline fun HttpClient.postUnit(
 
 suspend inline fun <reified T> HttpClient.put(
     urlString: String,
+    bodyMode: HttpBodyMode = HttpBodyMode.Json,
     crossinline block: HttpRequestBuilder.() -> Unit = {}
 ): ApiResult<T> = withContext(Dispatchers.Default) {
     try {
-        val response = request(urlString) {
+        var response = request(urlString) {
             method = HttpMethod.Put
+            if (bodyMode == HttpBodyMode.Json) {
+                contentType(ContentType.Application.Json)
+            }
             block()
         }
+        if (!response.status.isSuccess() && isUnauthorized(response.status)) {
+            val refreshed = TokenRefresher.tryRefresh()
+            if (refreshed) {
+                response = request(urlString) {
+                    method = HttpMethod.Put
+                    if (bodyMode == HttpBodyMode.Json) {
+                        contentType(ContentType.Application.Json)
+                    }
+                    block()
+                }
+            }
+        }
         if (!response.status.isSuccess()) {
+            if (isUnauthorized(response.status)) {
+                AuthEvents.unauthorized(runCatching { response.bodyAsText() }.getOrNull())
+            }
             return@withContext failureResultFromResponse(response)
         }
         ApiResult.Success(response.body())
@@ -188,16 +281,44 @@ suspend inline fun <reified T> HttpClient.put(
     }
 }
 
+/**
+ * POST `multipart/form-data`（等价于 [post] + [HttpBodyMode.Multipart]），类比 Retrofit `@Multipart`。
+ */
+suspend inline fun <reified T> HttpClient.postMultipart(
+    urlString: String,
+    crossinline block: HttpRequestBuilder.() -> Unit = {}
+): ApiResult<T> = post(urlString, HttpBodyMode.Multipart, block)
+
+/**
+ * PUT `multipart/form-data`（等价于 [put] + [HttpBodyMode.Multipart]），需要时再用。
+ */
+suspend inline fun <reified T> HttpClient.putMultipart(
+    urlString: String,
+    crossinline block: HttpRequestBuilder.() -> Unit = {}
+): ApiResult<T> = put(urlString, HttpBodyMode.Multipart, block)
+
 suspend inline fun <reified T> HttpClient.delete(
     urlString: String,
     crossinline block: HttpRequestBuilder.() -> Unit = {}
 ): ApiResult<T> = withContext(Dispatchers.Default) {
     try {
-        val response = request(urlString) {
+        var response = request(urlString) {
             method = HttpMethod.Delete
             block()
         }
+        if (!response.status.isSuccess() && isUnauthorized(response.status)) {
+            val refreshed = TokenRefresher.tryRefresh()
+            if (refreshed) {
+                response = request(urlString) {
+                    method = HttpMethod.Delete
+                    block()
+                }
+            }
+        }
         if (!response.status.isSuccess()) {
+            if (isUnauthorized(response.status)) {
+                AuthEvents.unauthorized(runCatching { response.bodyAsText() }.getOrNull())
+            }
             return@withContext failureResultFromResponse(response)
         }
         ApiResult.Success(response.body())
